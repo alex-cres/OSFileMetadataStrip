@@ -8,33 +8,33 @@ Changes in progress — not yet published to OutSystems Forge.
 
 ## Added
 
-- Initial project scaffold: .NET 10 Class Library (`FileMetadataStripping`)
-- `IFileMetadataStripping` interface decorated with `[OSInterface]` exposing `StripFileMetadata`
-- `FileMetadataStripping` class implementing metadata stripping via SixLabors.ImageSharp 3.1.8
-  - Clears `ExifProfile`, `IptcProfile`, and `XmpProfile` before re-encoding
-  - Re-encodes as JPEG at quality 90 to ensure metadata is not propagated
-- `StripFileMetadata` now returns `FileMetadataResult` structure instead of bare `BinaryData`:
-  - `CleanFile` (BinaryData) — the stripped file
-  - `ExtractedMetadata` (Text) — JSON of all removed entries for policy review
+- `IFileMetadataStripping` interface (`[OSInterface]`) exposing `StripFileMetadata`
+- `FileMetadataResult` (`[OSStructure]`) return type with four fields:
+  - `CleanFile` (BinaryData) — file with all metadata stripped
+  - `ExtractedMetadata` (Text) — JSON of removed entries for policy review
   - `RemovedEntryCount` (Integer) — number of metadata entries removed
-- `FileMetadataResult.cs` — new `[OSStructure]` struct added to the project
-- `FileMetadataStripping.Tests` xUnit test project (9 tests, all passing)
-  - Happy path: clean image round-trip, dimension preservation, decodability
-  - Security: EXIF removed, IPTC removed, XMP removed, all profiles removed simultaneously
-  - Sanity: verifies test data actually contains metadata before stripping
-- `AGENTS.md` — repo-level context and conventions for AI agents
-- `.github/agents/outsystems-ext-builder.agent.md` — extension lifecycle agent
-- `.github/agents/test-runner.agent.md` — test build/run/analysis subagent
-- `.github/skills/os-odc-external-lib/` — ODC External Library lifecycle skill
-- `.github/skills/os-o11-extension/` — O11 Integration Studio extension skill
-- `CHANGELOG.md` — version index
-- `docs/versions/UNRELEASED.md` — this file
-- Implementation guide: `01-exif-metadata-stripping.md` (attack vector, options A/B)
+  - `IsPassthrough` (Boolean) — `True` when the file format has no metadata containers; file returned unchanged
+- Multi-format support via automatic file-type detection from magic bytes:
+  - **Images** (JPEG, PNG, GIF, BMP, TIFF, WebP, TGA, and 200+ more) — via Magick.NET `image.Strip()`
+  - **PDF** — /Info dictionary fields (Title, Author, Subject, Keywords, Creator)
+  - **Office Open XML** (DOCX, XLSX, PPTX) — core package properties (Creator, LastModifiedBy, Created, Modified, Title, Subject, Description, Keywords, Category)
+  - **Plain text / unrecognised formats** (TXT, CSV, MD, JSON, XML, HTML, …) — passthrough, `IsPassthrough = true`, file returned unchanged
+- Format preservation: output is re-encoded in the same format as input
+- `FileMetadataStripping.Tests` xUnit test project (36 tests, all passing)
+  - `ImageTests.cs`: clean round-trip, EXIF/IPTC/XMP removal, format preservation (JPEG, PNG)
+  - `PdfTests.cs`: author/title cleared, audit metadata captured, valid PDF output
+  - `OpenXmlTests.cs`: creator cleared, audit metadata captured, valid OOXML output
+  - `PassthroughTests.cs`: plain text passthrough contract, IsPassthrough=false for active formats
+  - `TestHelpers.cs`: shared programmatic test data generators (no binary files committed)
+- `AGENTS.md`, `test-runner` subagent, `outsystems-ext-builder` agent, ODC and O11 skills
+- `docs/platform/forge-description.md` — component description for OutSystems Forge
 
 ## Changed
 
-- `README.md` updated with full project objective, Server Actions table, requirements, usage, and build instructions
-- `SixLabors.ImageSharp` downgraded from 4.0.0 (commercial license) to 3.1.8 (Apache 2.0 / FOSS)
+- Image engine switched from SixLabors.ImageSharp (Six Labors Split License) to **Magick.NET-Q8-AnyCPU** (Apache 2.0) — cleaner license, simpler API (`image.Strip()`)
+- PDF library switched from PdfSharpCore (had ImageSharp transitive dependency) to **PDFsharp 6.2.4** (MIT, no ImageSharp dependency)
+- All dependencies are now Apache 2.0 or MIT — no commercial license concerns for Forge
+- Publish command updated: requires `-r linux-x64` due to Magick.NET native binaries
 
 ## Fixed
 
@@ -42,5 +42,6 @@ Changes in progress — not yet published to OutSystems Forge.
 
 ## Removed
 
-- `Class1.cs` placeholder replaced with `FileMetadataStripping.cs` implementation
+- `SixLabors.ImageSharp` — fully eliminated from the dependency tree
+- `PdfSharpCore` — replaced by PDFsharp 6.x
 

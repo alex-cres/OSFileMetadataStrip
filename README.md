@@ -22,9 +22,10 @@ File metadata containers (EXIF in images, IPTC/XMP in documents) can hold arbitr
 
 | Category | Formats | Metadata Stripped |
 |----------|---------|-------------------|
-| Images | JPEG, PNG, GIF, BMP, TIFF, WebP, TGA | EXIF, IPTC, XMP profiles |
+| Images | JPEG, PNG, GIF, BMP, TIFF, WebP, TGA, and 200+ more | EXIF, IPTC, XMP, ICC profiles, comments |
 | PDF | PDF | Title, Author, Subject, Keywords, Creator |
 | Office documents | DOCX, XLSX, PPTX | Creator, LastModifiedBy, Created, Modified, Title, Subject, Description, Keywords, Category |
+| Plain text / other | TXT, CSV, MD, JSON, XML, HTML, and any unrecognised format | Passthrough — returned unchanged with `IsPassthrough = true` |
 
 ---
 
@@ -32,7 +33,7 @@ File metadata containers (EXIF in images, IPTC/XMP in documents) can hold arbitr
 
 | Action | Input | Output | Description |
 |--------|-------|--------|-------------|
-| `StripFileMetadata` | `RawFile : BinaryData` | `FileMetadataResult` | Strips EXIF, IPTC, and XMP metadata from an image. Returns the clean file and the extracted metadata for policy review. |
+| `StripFileMetadata` | `RawFile : BinaryData` | `FileMetadataResult` | Strips embedded metadata from any supported file. Returns the clean file, the extracted metadata for policy review, and a flag indicating whether stripping was applicable. |
 
 ### FileMetadataResult Structure
 
@@ -41,15 +42,23 @@ File metadata containers (EXIF in images, IPTC/XMP in documents) can hold arbitr
 | `CleanFile` | `BinaryData` | The file with all metadata removed. Safe to forward to AI APIs or store. |
 | `ExtractedMetadata` | `Text` | JSON object of all metadata entries found and removed (keyed by type: `exif`, `iptc`, `xmp`). Returns `[]` when no metadata was present. |
 | `RemovedEntryCount` | `Integer` | Total number of metadata entries removed. Zero when the file had no embedded metadata. |
+| `IsPassthrough` | `Boolean` | `True` when the file format has no supported metadata containers (e.g. TXT, CSV, MD, JSON) and was returned unchanged. Use this flag in audit logs to distinguish passthrough files from files that were actively processed and found clean. |
 
 ---
 
 ## How It Works
 
-Uses [SixLabors.ImageSharp](https://github.com/SixLabors/ImageSharp) to decode the image, explicitly null out all metadata profiles (EXIF, IPTC, XMP), and re-encode it. ImageSharp does not propagate metadata by default on re-encode, giving a defence-in-depth guarantee even if the nulling step were skipped.
+Detects the file type from its binary signature, then routes to a format-specific stripper:
+
+| File type | Library | What's stripped |
+|-----------|---------|----------------|
+| Images (JPEG, PNG, GIF, BMP, TIFF, WebP, TGA, 200+…) | [Magick.NET](https://github.com/dlemstra/Magick.NET) (Apache 2.0) | All metadata via `image.Strip()` — EXIF, IPTC, XMP, ICC profiles, comments |
+| PDF | [PDFsharp](https://www.pdfsharp.net/) (MIT) | /Info dictionary fields (Title, Author, Subject, Keywords, Creator) |
+| Office Open XML (DOCX, XLSX, PPTX) | [DocumentFormat.OpenXml](https://github.com/dotnet/Open-XML-SDK) (MIT) | Core properties (Creator, LastModifiedBy, Created, Modified, Title, Subject, Description, Keywords, Category) |
+| Plain text / unrecognised | — | Passthrough — `IsPassthrough = true`, file returned unchanged |
 
 ```
-Upload → StripFileMetadata → Clean BinaryData → AI API / Storage
+Upload → StripFileMetadata → Clean BinaryData + ExtractedMetadata → AI API / Storage
 ```
 
 ---
@@ -59,11 +68,11 @@ Upload → StripFileMetadata → Clean BinaryData → AI API / Storage
 - **Platform:** OutSystems Developer Cloud (ODC)
 - **Runtime:** Linux container (ODC Portal)
 - **.NET:** 10.0 LTS
-- **NuGet packages:**
-  - `OutSystems.ExternalLibraries.SDK`
-  - `SixLabors.ImageSharp` — image format support
-  - `PdfSharpCore` — PDF metadata access
-  - `DocumentFormat.OpenXml` — Office Open XML metadata access
+- **NuGet packages (all Apache 2.0 or MIT):**
+  - `OutSystems.ExternalLibraries.SDK` — ODC External Library SDK
+  - `Magick.NET-Q8-AnyCPU` (Apache 2.0) — image processing and metadata stripping
+  - `PDFsharp` (MIT) — PDF /Info dictionary access
+  - `DocumentFormat.OpenXml` (MIT) — Office Open XML core properties
 
 ---
 
@@ -82,11 +91,13 @@ See the [implementation guide](./01-exif-metadata-stripping.md) for full context
 
 ### Build & Publish
 
+Magick.NET includes native linux-x64 binaries, so the runtime identifier is required:
+
 ```powershell
 cd FileMetadataStripping
-dotnet publish -c Release --no-self-contained
-# Zip contents of bin/Release/net10.0/publish/* to ExternalLibrary.zip
-Compress-Archive -Path "bin/Release/net10.0/publish/*" -DestinationPath "ExternalLibrary.zip" -Force
+dotnet publish -c Release -r linux-x64 --no-self-contained
+# Zip the linux-x64 publish folder contents to ExternalLibrary.zip
+Compress-Archive -Path "bin/Release/net10.0/linux-x64/publish/*" -DestinationPath "ExternalLibrary.zip" -Force
 ```
 
 ---

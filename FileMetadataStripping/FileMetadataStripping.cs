@@ -1,7 +1,6 @@
-﻿using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Jpeg;
+﻿using ImageMagick;
+using PdfSharp.Pdf;
+using PdfSharp.Pdf.IO;
 using System.IO.Packaging;
 using System.Text.Json.Nodes;
 
@@ -9,16 +8,17 @@ namespace FileMetadataStripping;
 
 public class FileMetadataStripping : IFileMetadataStripping
 {
-    private enum FileCategory { Image, Pdf, OpenXml }
+    private enum FileCategory { Image, Pdf, OpenXml, Passthrough }
 
     public FileMetadataResult StripFileMetadata(byte[] rawFile)
     {
         return DetectCategory(rawFile) switch
         {
-            FileCategory.Image   => StripImageMetadata(rawFile),
-            FileCategory.Pdf     => StripPdfMetadata(rawFile),
-            FileCategory.OpenXml => StripOpenXmlMetadata(rawFile),
-            _                    => throw new NotSupportedException("Unsupported file format.")
+            FileCategory.Image       => StripImageMetadata(rawFile),
+            FileCategory.Pdf         => StripPdfMetadata(rawFile),
+            FileCategory.OpenXml     => StripOpenXmlMetadata(rawFile),
+            FileCategory.Passthrough => Passthrough(rawFile),
+            _                        => Passthrough(rawFile)
         };
     }
 
@@ -38,57 +38,51 @@ public class FileMetadataStripping : IFileMetadataStripping
             && rawFile[2] == 0x03 && rawFile[3] == 0x04)
             return FileCategory.OpenXml;
 
-        // Images: JPEG, PNG, GIF, BMP, TIFF, WebP, TGA — detected by ImageSharp
+        // Images: JPEG, PNG, GIF, BMP, TIFF, WebP, TGA, and 200+ more — detected by Magick.NET
         try
         {
-            Image.DetectFormat(new MemoryStream(rawFile));
-            return FileCategory.Image;
+            var info = new MagickImageInfo(rawFile);
+            if (info.Format != MagickFormat.Unknown)
+                return FileCategory.Image;
         }
-        catch (UnknownImageFormatException) { }
+        catch (MagickException) { }
 
-        throw new NotSupportedException(
-            "Unsupported file type. Supported: images (JPEG, PNG, GIF, BMP, TIFF, WebP), PDF, " +
-            "and Office documents (DOCX, XLSX, PPTX).");
+        // No known metadata format (plain text, CSV, JSON, XML, etc.) — passthrough
+        return FileCategory.Passthrough;
     }
 
     // ── Image ─────────────────────────────────────────────────────────────────
 
     private static FileMetadataResult StripImageMetadata(byte[] rawFile)
     {
-        var format = Image.DetectFormat(new MemoryStream(rawFile));
-
-        using var input = new MemoryStream(rawFile);
-        using var image = Image.Load(input);
+        using var image = new MagickImage(rawFile);
 
         var (extractedMetadata, removedEntryCount) = ExtractImageMetadata(image);
 
-        image.Metadata.ExifProfile = null;
-        image.Metadata.IptcProfile = null;
-        image.Metadata.XmpProfile  = null;
+        image.Strip(); // removes EXIF, IPTC, XMP, ICC profiles, and comments in one call
 
         using var output = new MemoryStream();
-        if (format is JpegFormat)
-            image.Save(output, new JpegEncoder { Quality = 90 });
-        else
-            image.Save(output, format);
+        image.Write(output); // preserves original format automatically
 
         return new FileMetadataResult
         {
             CleanFile         = output.ToArray(),
             ExtractedMetadata = extractedMetadata,
-            RemovedEntryCount = removedEntryCount
+            RemovedEntryCount = removedEntryCount,
+            IsPassthrough     = false
         };
     }
 
-    private static (string json, int count) ExtractImageMetadata(Image image)
+    private static (string json, int count) ExtractImageMetadata(MagickImage image)
     {
         var root  = new JsonObject();
         var count = 0;
 
-        if (image.Metadata.ExifProfile is { } exif && exif.Values.Any())
+        var exifProfile = image.GetExifProfile();
+        if (exifProfile != null)
         {
             var exifNode = new JsonObject();
-            foreach (var v in exif.Values)
+            foreach (var v in exifProfile.Values)
             {
                 exifNode[v.Tag.ToString()] = JsonValue.Create(v.GetValue()?.ToString());
                 count++;
@@ -96,8 +90,8 @@ public class FileMetadataStripping : IFileMetadataStripping
             root["exif"] = exifNode;
         }
 
-        var iptcProfile = image.Metadata.IptcProfile;
-        if (iptcProfile != null && iptcProfile.Values.Any())
+        var iptcProfile = image.GetIptcProfile();
+        if (iptcProfile != null)
         {
             var iptcArray = new JsonArray();
             foreach (var v in iptcProfile.Values)
@@ -112,7 +106,8 @@ public class FileMetadataStripping : IFileMetadataStripping
             root["iptc"] = iptcArray;
         }
 
-        if (image.Metadata.XmpProfile is not null)
+        var xmpProfile = image.GetXmpProfile();
+        if (xmpProfile != null)
         {
             root["xmp"] = "present";
             count++;
@@ -143,7 +138,8 @@ public class FileMetadataStripping : IFileMetadataStripping
         {
             CleanFile         = output.ToArray(),
             ExtractedMetadata = extractedMetadata,
-            RemovedEntryCount = removedEntryCount
+            RemovedEntryCount = removedEntryCount,
+            IsPassthrough     = false
         };
     }
 
@@ -198,7 +194,8 @@ public class FileMetadataStripping : IFileMetadataStripping
         {
             CleanFile         = ms.ToArray(),
             ExtractedMetadata = extractedMetadata,
-            RemovedEntryCount = removedEntryCount
+            RemovedEntryCount = removedEntryCount,
+            IsPassthrough     = false
         };
     }
 
@@ -227,6 +224,17 @@ public class FileMetadataStripping : IFileMetadataStripping
 
         return count > 0 ? (root.ToJsonString(), count) : ("[]", 0);
     }
+
+    // ── Passthrough (plain text, CSV, JSON, XML, MD, etc.) ────────────────────
+
+    private static FileMetadataResult Passthrough(byte[] rawFile) =>
+        new FileMetadataResult
+        {
+            CleanFile         = rawFile,
+            ExtractedMetadata = "[]",
+            RemovedEntryCount = 0,
+            IsPassthrough     = true
+        };
 
 }
 

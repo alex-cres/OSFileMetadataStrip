@@ -13,4 +13,7 @@ public struct FileMetadataResult
 
     [OSStructureField(Description = "Total number of metadata entries removed from the file. Zero when the file contained no embedded metadata.")]
     public int RemovedEntryCount { get; set; }
+
+    [OSStructureField(Description = "True when the file format has no supported metadata containers (e.g. TXT, CSV, MD, JSON). The file is returned unchanged. Use this flag in audit logs to distinguish passthrough files from files that were actively processed and found clean.")]
+    public bool IsPassthrough { get; set; }
 }
