@@ -11,6 +11,7 @@ Versions correspond to releases published on the [OutSystems Forge](https://www.
 | Version | Date | Notes |
 |---------|------|-------|
 | [Unreleased](./docs/versions/UNRELEASED.md) | — | In-progress changes not yet published to Forge |
+| [v0.1.0](./docs/versions/v0.1.0.md) | 2026-07-21 | Initial release |
 
 ---
 
