@@ -16,16 +16,19 @@ Changes in progress — not yet published to OutSystems Forge.
   - `IsPassthrough` (Boolean) — `True` when the file format has no metadata containers; file returned unchanged
 - Multi-format support via automatic file-type detection from magic bytes:
   - **Images** (JPEG, PNG, GIF, BMP, TIFF, WebP, TGA, and 200+ more) — via Magick.NET `image.Strip()`
+  - **Audio** (MP3, FLAC, OGG, WAV, M4A, WMA…) — via TagLibSharp; strips ID3 tags, Vorbis comments, metadata atoms
+  - **Video** (MP4, MOV, AVI, MKV, WebM, WMV) — via TagLibSharp; strips metadata atoms/tags
   - **PDF** — /Info dictionary fields (Title, Author, Subject, Keywords, Creator)
   - **Office Open XML** (DOCX, XLSX, PPTX) — core package properties (Creator, LastModifiedBy, Created, Modified, Title, Subject, Description, Keywords, Category)
   - **Plain text / unrecognised formats** (TXT, CSV, MD, JSON, XML, HTML, …) — passthrough, `IsPassthrough = true`, file returned unchanged
 - Format preservation: output is re-encoded in the same format as input
-- `FileMetadataStripping.Tests` xUnit test project (36 tests, all passing)
+- `FileMetadataStripping.Tests` xUnit test project (66 tests, all passing)
   - `ImageTests.cs`: clean round-trip, EXIF/IPTC/XMP removal, format preservation (JPEG, PNG)
   - `PdfTests.cs`: author/title cleared, audit metadata captured, valid PDF output
   - `OpenXmlTests.cs`: creator cleared, audit metadata captured, valid OOXML output
   - `PassthroughTests.cs`: plain text passthrough contract, IsPassthrough=false for active formats
-  - `TestHelpers.cs`: shared programmatic test data generators (no binary files committed)
+  - `AudioVideoTests.cs`: WAV + MP3 full strip; FLAC/OGG/MP4/MKV/AVI detection; processingError message when TagLibSharp cannot parse a file
+  - `TestHelpers.cs`: shared programmatic generators for all supported formats (no binary files committed)
 - `AGENTS.md`, `test-runner` subagent, `outsystems-ext-builder` agent, ODC and O11 skills
 - `docs/platform/forge-description.md` — component description for OutSystems Forge
 
@@ -33,8 +36,8 @@ Changes in progress — not yet published to OutSystems Forge.
 
 - Image engine switched from SixLabors.ImageSharp (Six Labors Split License) to **Magick.NET-Q8-AnyCPU** (Apache 2.0) — cleaner license, simpler API (`image.Strip()`)
 - PDF library switched from PdfSharpCore (had ImageSharp transitive dependency) to **PDFsharp 6.2.4** (MIT, no ImageSharp dependency)
-- All dependencies are now Apache 2.0 or MIT — no commercial license concerns for Forge
-- Publish command updated: requires `-r linux-x64` due to Magick.NET native binaries
+- Audio/video engine: **TagLibSharp 2.3.0** (LGPL 2.1) added — strips ID3 tags, Vorbis comments, and metadata atoms from MP3, FLAC, OGG, WAV, MP4, MOV, AVI, MKV, WebM, WMV, WMA
+- Graceful error handling when TagLibSharp cannot parse a media file: original bytes returned unchanged, `ExtractedMetadata` set to a JSON `processingError` audit note, `IsPassthrough` remains `false`
 
 ## Fixed
 

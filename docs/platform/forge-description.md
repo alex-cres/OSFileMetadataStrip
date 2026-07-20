@@ -29,6 +29,8 @@ Calling `StripFileMetadata` at the earliest point in any flow that accepts file 
 | Category | Formats | Metadata Stripped |
 |----------|---------|-------------------|
 | Images | JPEG, PNG, GIF, BMP, TIFF, WebP, TGA | EXIF (camera data, GPS, descriptions), IPTC (captions, keywords), XMP |
+| Audio | MP3, FLAC, OGG, WAV, M4A, WMA | ID3 tags, Vorbis comments, metadata atoms (title, artist, album, comment, genre…) |
+| Video | MP4, MOV, AVI, MKV, WebM, WMV | Metadata atoms/tags (title, conductor, copyright…) |
 | PDF | PDF | Title, Author, Subject, Keywords, Creator |
 | Office documents | DOCX, XLSX, PPTX | Creator, LastModifiedBy, Created/Modified dates, Title, Subject, Description, Keywords, Category |
 
@@ -82,8 +84,7 @@ StripFileMetadata(RawFile: FileContent.Content)
 
 | Library | License | Purpose |
 |---------|---------|---------|
-| Magick.NET-Q8-AnyCPU | Apache 2.0 | Image decoding and metadata stripping |
-| PDFsharp | MIT | PDF /Info dictionary access |
+| Magick.NET-Q8-AnyCPU | Apache 2.0 | Image decoding and metadata stripping || TagLibSharp | LGPL 2.1 | Audio and video metadata stripping || PDFsharp | MIT | PDF /Info dictionary access |
 | DocumentFormat.OpenXml | MIT | Office Open XML package properties |
 
 ---
@@ -103,3 +104,40 @@ Upload `ExternalLibrary.zip` to ODC Portal → External Logic.
 ### License
 
 MIT — see [LICENSE](../../LICENSE)
+
+---
+
+### How This Compares to Other Forge Components
+
+Several Forge components handle metadata in related ways. Here is how **OSFileMetadataStrip** differs:
+
+#### OutSystems 11 (O11) — existing components
+
+| Component | Strips? | Formats | Audit trail |
+|-----------|---------|---------|-------------|
+| [MediaToolkit](https://www.outsystems.com/forge/component-overview/2693/mediatoolkit-o11) | ✅ Explicit `Strip metadata` action | Images (JPEG, PNG, BMP…), audio, video | ❌ |
+| Image Utils | ⚠️ Side effect of re-encode only | JPEG, PNG | ❌ |
+| [Exif Image Metadata Extractor](https://www.outsystems.com/forge/component-overview/10132/exif-image-metadata-extractor-o11) | ❌ Client-side read-only (JavaScript) | Images | ❌ |
+| [PDF Metadata Extractor](https://www.outsystems.com/forge/component-overview/22699/pdf-metadata-extractor-o11) | ❌ Client-side read-only (PDF.js) | PDF | ❌ |
+
+#### OutSystems Developer Cloud (ODC) — existing components
+
+| Component | Strips? | Formats | Audit trail |
+|-----------|---------|---------|-------------|
+| [PixCraft](https://www.outsystems.com/forge/component-overview/21722/pixcraft-odc) | ⚠️ Side effect of format conversion / compression | Images only | ❌ |
+| [FileInspectorJS](https://www.outsystems.com/forge/component-overview/22725/fileinspectorjs-odc) | ❌ Detects MIME type / extension only (client-side) | — | ❌ |
+
+#### What OSFileMetadataStrip adds that no existing component provides
+
+| Capability | Existing Forge | This component |
+|------------|---------------|----------------|
+| Images **and** PDF **and** OOXML in one action | ❌ | ✅ |
+| Explicit strip guarantee (not a side effect of re-encoding) | ❌ (only MediaToolkit, images only) | ✅ |
+| Returns extracted metadata as JSON for policy review | ❌ | ✅ `ExtractedMetadata` |
+| `IsPassthrough` flag for plain-text / unknown formats | ❌ | ✅ |
+| Entry count for alerting (`RemovedEntryCount > 0`) | ❌ | ✅ |
+| IPTC profile stripping | ❌ | ✅ |
+| Pure Apache 2.0 / MIT licence stack | ❌ (PixCraft uses SixLabors.ImageSharp internally — Six Labors Split Licence) | ✅ |
+| ODC server-side External Library | ❌ (PixCraft closest but image-only) | ✅ |
+
+> **Summary:** MediaToolkit (O11) is the closest existing option — it has an explicit `Strip metadata` action but covers images only, returns no audit data, and is O11-only. For ODC, PixCraft is an image processor that drops metadata as a side effect of re-encoding, but provides no explicit stripping guarantee, no PDF/OOXML support, and no structured output for audit trails.

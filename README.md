@@ -23,6 +23,8 @@ File metadata containers (EXIF in images, IPTC/XMP in documents) can hold arbitr
 | Category | Formats | Metadata Stripped |
 |----------|---------|-------------------|
 | Images | JPEG, PNG, GIF, BMP, TIFF, WebP, TGA, and 200+ more | EXIF, IPTC, XMP, ICC profiles, comments |
+| Audio | MP3, FLAC, OGG, WAV, M4A, WMA, and more | ID3 tags, Vorbis comments, metadata atoms (title, artist, album, comment, genre, …) |
+| Video | MP4, MOV, AVI, MKV, WebM, WMV | Metadata atoms/tags (title, artist, conductor, copyright, …) |
 | PDF | PDF | Title, Author, Subject, Keywords, Creator |
 | Office documents | DOCX, XLSX, PPTX | Creator, LastModifiedBy, Created, Modified, Title, Subject, Description, Keywords, Category |
 | Plain text / other | TXT, CSV, MD, JSON, XML, HTML, and any unrecognised format | Passthrough — returned unchanged with `IsPassthrough = true` |
@@ -53,6 +55,8 @@ Detects the file type from its binary signature, then routes to a format-specifi
 | File type | Library | What's stripped |
 |-----------|---------|----------------|
 | Images (JPEG, PNG, GIF, BMP, TIFF, WebP, TGA, 200+…) | [Magick.NET](https://github.com/dlemstra/Magick.NET) (Apache 2.0) | All metadata via `image.Strip()` — EXIF, IPTC, XMP, ICC profiles, comments |
+| Audio (MP3, FLAC, OGG, WAV, M4A, WMA…) | [TagLibSharp](https://github.com/mono/taglib-sharp) (LGPL 2.1) | ID3 tags, Vorbis comments, metadata atoms |
+| Video (MP4, MOV, AVI, MKV, WebM, WMV) | [TagLibSharp](https://github.com/mono/taglib-sharp) (LGPL 2.1) | Metadata atoms/tags |
 | PDF | [PDFsharp](https://www.pdfsharp.net/) (MIT) | /Info dictionary fields (Title, Author, Subject, Keywords, Creator) |
 | Office Open XML (DOCX, XLSX, PPTX) | [DocumentFormat.OpenXml](https://github.com/dotnet/Open-XML-SDK) (MIT) | Core properties (Creator, LastModifiedBy, Created, Modified, Title, Subject, Description, Keywords, Category) |
 | Plain text / unrecognised | — | Passthrough — `IsPassthrough = true`, file returned unchanged |
@@ -68,9 +72,10 @@ Upload → StripFileMetadata → Clean BinaryData + ExtractedMetadata → AI API
 - **Platform:** OutSystems Developer Cloud (ODC)
 - **Runtime:** Linux container (ODC Portal)
 - **.NET:** 10.0 LTS
-- **NuGet packages (all Apache 2.0 or MIT):**
+- **NuGet packages (all Apache 2.0, MIT, or LGPL 2.1):**
   - `OutSystems.ExternalLibraries.SDK` — ODC External Library SDK
   - `Magick.NET-Q8-AnyCPU` (Apache 2.0) — image processing and metadata stripping
+  - `TagLibSharp` (LGPL 2.1) — audio and video metadata stripping
   - `PDFsharp` (MIT) — PDF /Info dictionary access
   - `DocumentFormat.OpenXml` (MIT) — Office Open XML core properties
 
@@ -105,3 +110,9 @@ Compress-Archive -Path "bin/Release/net10.0/linux-x64/publish/*" -DestinationPat
 ## Changelog
 
 See [CHANGELOG.md](./CHANGELOG.md) for the full version history.
+
+---
+
+## Third-Party Notices
+
+See [THIRD-PARTY-NOTICES.md](./THIRD-PARTY-NOTICES.md) for the full list of open-source dependencies and their licenses.
