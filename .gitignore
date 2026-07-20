@@ -7,3 +7,6 @@
 # Publish output & release ZIP
 **/publish/
 *.zip
+
+# Generated sample files
+tools/GenerateSamples/output/
