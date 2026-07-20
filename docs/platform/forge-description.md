@@ -28,11 +28,12 @@ Calling `StripFileMetadata` at the earliest point in any flow that accepts file 
 
 | Category | Formats | Metadata Stripped |
 |----------|---------|-------------------|
-| Images | JPEG, PNG, GIF, BMP, TIFF, WebP, TGA | EXIF (camera data, GPS, descriptions), IPTC (captions, keywords), XMP |
-| Audio | MP3, FLAC, OGG, WAV, M4A, WMA | ID3 tags, Vorbis comments, metadata atoms (title, artist, album, comment, genre…) |
+| Images | JPEG, PNG, GIF, BMP, TIFF, WebP, TGA, and 100+ more | EXIF (camera data, GPS, descriptions), IPTC (captions, keywords), XMP, ICC profiles, comments |
+| Audio | MP3, FLAC, OGG, WAV, M4A, WMA, and more | ID3 tags, Vorbis comments, metadata atoms (title, artist, album, comment, genre…) |
 | Video | MP4, MOV, AVI, MKV, WebM, WMV | Metadata atoms/tags (title, conductor, copyright…) |
-| PDF | PDF | Title, Author, Subject, Keywords, Creator |
-| Office documents | DOCX, XLSX, PPTX | Creator, LastModifiedBy, Created/Modified dates, Title, Subject, Description, Keywords, Category |
+| PDF | PDF | Title, Author, Subject, Keywords, Creator, Producer |
+| Office documents | DOCX, XLSX, PPTX | Creator, LastModifiedBy, Created/Modified dates, Title, Subject, Description, Keywords, Category, ContentStatus, Revision |
+| Plain text / other | TXT, CSV, MD, JSON, XML, HTML, and any unrecognised format | Passthrough — returned unchanged with `IsPassthrough = true` |
 
 ---
 

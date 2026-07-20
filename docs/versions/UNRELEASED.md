@@ -21,7 +21,7 @@ Changes in progress — not yet published to OutSystems Forge.
 
 | Format | Detected by | Stripped fields |
 |--------|-------------|-----------------|
-| **Images** — JPEG, PNG, GIF, BMP, TIFF, WebP, TGA, 200+ more | Magick.NET `MagickImageInfo` | EXIF, IPTC, XMP, ICC profiles, image comments |
+| **Images** — JPEG, PNG, GIF, BMP, TIFF, WebP, TGA, 100+ more | Magick.NET `MagickImageInfo` | EXIF, IPTC, XMP, ICC profiles, image comments |
 | **PDF** | `%PDF` magic bytes | /Info: Title, Author, Subject, Keywords, Creator, Producer |
 | **Office Open XML** — DOCX, XLSX, PPTX | ZIP `PK` magic bytes | Core properties: Creator, LastModifiedBy, Created, Modified, Title, Subject, Description, Keywords, Category, ContentStatus, Revision |
 | **Audio** — MP3, FLAC, OGG, WAV, M4A, WMA | ID3 / fLaC / OggS / RIFF / ASF magic bytes | ID3 tags, Vorbis comments, metadata atoms (`RemoveTags(AllTags)`) |

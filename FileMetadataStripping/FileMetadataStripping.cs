@@ -40,7 +40,7 @@ public class FileMetadataStripping : IFileMetadataStripping
             && rawFile[2] == 0x03 && rawFile[3] == 0x04)
             return FileCategory.OpenXml;
 
-        // Images: JPEG, PNG, GIF, BMP, TIFF, WebP, TGA, and 200+ more — detected by Magick.NET
+        // Images: JPEG, PNG, GIF, BMP, TIFF, WebP, TGA, and 100+ more — detected by Magick.NET
         try
         {
             var info = new MagickImageInfo(rawFile);
