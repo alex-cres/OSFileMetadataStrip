@@ -1,1 +1,9 @@
 *.pyc
+
+# .NET build output
+**/bin/
+**/obj/
+
+# Publish output & release ZIP
+**/publish/
+*.zip
