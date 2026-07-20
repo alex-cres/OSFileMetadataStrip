@@ -41,13 +41,13 @@ Changes in progress — not yet published to OutSystems Forge.
 
 ### Test Suite
 
-- `FileMetadataStripping.Tests` — xUnit test project, 66 tests, all passing
-  - `ImageTests.cs` (19 tests): clean round-trip, EXIF/IPTC/XMP removal, format preservation for JPEG and PNG
+- `FileMetadataStripping.Tests` — xUnit test project, 74 tests, all passing
+  - `ImageTests.cs` (27 tests): clean round-trip, EXIF/IPTC/XMP removal, format preservation for JPEG, PNG, GIF, BMP, TIFF, and WebP; metadata stripping verified for TIFF and WebP
   - `PdfTests.cs` (6 tests): author/title cleared, audit metadata captured, valid PDF output
   - `OpenXmlTests.cs` (5 tests): creator cleared, audit metadata captured, valid OOXML output
   - `PassthroughTests.cs` (6 tests): plain-text passthrough contract, `IsPassthrough = false` for active formats
   - `AudioVideoTests.cs` (30 tests): WAV + MP3 full strip; FLAC/OGG/MP4/MKV/AVI detection; `processingError` audit note when TagLibSharp cannot parse a file
-  - `TestHelpers.cs`: shared programmatic test-data generators for all supported formats — no binary files committed
+  - `TestHelpers.cs`: shared programmatic test-data generators for all supported formats — no binary files committed; added `CreateGif`, `CreateBmp`, `CreateTiff`, `CreateWebP` helpers
 
 ### Repository & Tooling
 

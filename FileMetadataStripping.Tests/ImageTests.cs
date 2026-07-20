@@ -249,6 +249,92 @@ public class ImageTests
         Assert.Null(decoded.GetExifProfile());
     }
 
+    [Fact]
+    public void StripFileMetadata_GifInput_OutputIsGif()
+    {
+        var result = _sut.StripFileMetadata(TestHelpers.CreateGif());
+
+        var info = new MagickImageInfo(result.CleanFile);
+        Assert.Equal(MagickFormat.Gif, info.Format);
+    }
+
+    [Fact]
+    public void StripFileMetadata_GifInput_CleanFileIsDecodable()
+    {
+        var result = _sut.StripFileMetadata(TestHelpers.CreateGif());
+
+        var ex = Record.Exception(() => new MagickImage(result.CleanFile).Dispose());
+        Assert.Null(ex);
+    }
+
+    [Fact]
+    public void StripFileMetadata_BmpInput_OutputIsBmp()
+    {
+        var result = _sut.StripFileMetadata(TestHelpers.CreateBmp());
+
+        var info = new MagickImageInfo(result.CleanFile);
+        Assert.Equal(MagickFormat.Bmp, info.Format);
+    }
+
+    [Fact]
+    public void StripFileMetadata_BmpInput_CleanFileIsDecodable()
+    {
+        var result = _sut.StripFileMetadata(TestHelpers.CreateBmp());
+
+        var ex = Record.Exception(() => new MagickImage(result.CleanFile).Dispose());
+        Assert.Null(ex);
+    }
+
+    [Fact]
+    public void StripFileMetadata_TiffInput_OutputIsTiff()
+    {
+        var result = _sut.StripFileMetadata(TestHelpers.CreateTiff());
+
+        var info = new MagickImageInfo(result.CleanFile);
+        Assert.Equal(MagickFormat.Tiff, info.Format);
+    }
+
+    [Fact]
+    public void StripFileMetadata_TiffInput_MetadataIsStripped()
+    {
+        var input = TestHelpers.CreateTiff(img =>
+        {
+            var exif = new ExifProfile();
+            exif.SetValue(ExifTag.ImageDescription, "injected via tiff");
+            img.SetProfile(exif);
+        });
+
+        var result = _sut.StripFileMetadata(input);
+
+        using var decoded = new MagickImage(result.CleanFile);
+        Assert.Null(decoded.GetExifProfile());
+    }
+
+    [Fact]
+    public void StripFileMetadata_WebPInput_OutputIsWebP()
+    {
+        var result = _sut.StripFileMetadata(TestHelpers.CreateWebP());
+
+        var info = new MagickImageInfo(result.CleanFile);
+        Assert.Equal(MagickFormat.WebP, info.Format);
+    }
+
+    [Fact]
+    public void StripFileMetadata_WebPInput_MetadataIsStripped()
+    {
+        var input = TestHelpers.CreateWebP(img =>
+        {
+            var exif = new ExifProfile();
+            exif.SetValue(ExifTag.ImageDescription, "injected via webp");
+            img.SetProfile(exif);
+        });
+
+        var result = _sut.StripFileMetadata(input);
+
+        using var decoded = new MagickImage(result.CleanFile);
+        Assert.Null(decoded.GetExifProfile());
+    }
+
     // ── Helpers ────────────────────────────────────────────────────────────────
 
     private static byte[] CreateJpegWithAllMetadata()

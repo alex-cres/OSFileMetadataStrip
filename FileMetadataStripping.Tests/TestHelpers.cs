@@ -33,6 +33,46 @@ internal static class TestHelpers
         return ms.ToArray();
     }
 
+    internal static byte[] CreateGif(Action<MagickImage>? configure = null)
+    {
+        using var image = new MagickImage(MagickColors.White, 10, 10);
+        image.Format = MagickFormat.Gif;
+        configure?.Invoke(image);
+        using var ms = new MemoryStream();
+        image.Write(ms);
+        return ms.ToArray();
+    }
+
+    internal static byte[] CreateBmp(Action<MagickImage>? configure = null)
+    {
+        using var image = new MagickImage(MagickColors.White, 10, 10);
+        image.Format = MagickFormat.Bmp;
+        configure?.Invoke(image);
+        using var ms = new MemoryStream();
+        image.Write(ms);
+        return ms.ToArray();
+    }
+
+    internal static byte[] CreateTiff(Action<MagickImage>? configure = null)
+    {
+        using var image = new MagickImage(MagickColors.White, 10, 10);
+        image.Format = MagickFormat.Tiff;
+        configure?.Invoke(image);
+        using var ms = new MemoryStream();
+        image.Write(ms);
+        return ms.ToArray();
+    }
+
+    internal static byte[] CreateWebP(Action<MagickImage>? configure = null)
+    {
+        using var image = new MagickImage(MagickColors.White, 10, 10);
+        image.Format = MagickFormat.WebP;
+        configure?.Invoke(image);
+        using var ms = new MemoryStream();
+        image.Write(ms);
+        return ms.ToArray();
+    }
+
     internal static byte[] CreatePdf(string? author = null, string? title = null)
     {
         var doc = new PdfDocument();

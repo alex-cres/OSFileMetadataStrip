@@ -19,7 +19,7 @@ public class PdfTests
         var result = _sut.StripFileMetadata(input);
 
         using var ms = new MemoryStream(result.CleanFile);
-        using var doc = PdfReader.Open(ms, PdfDocumentOpenMode.ReadOnly);
+        using var doc = PdfReader.Open(ms, PdfDocumentOpenMode.Import);
         Assert.Equal(string.Empty, doc.Info.Author);
         Assert.Equal(string.Empty, doc.Info.Title);
     }
