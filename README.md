@@ -100,11 +100,14 @@ All packages are Apache 2.0, MIT, or LGPL 2.1.
 
 ## Using in O11
 
-1. Open Integration Studio and create a new extension named `FileMetadataStripping`.
-2. Define the `StripFileMetadata` action and `FileMetadataResult` structure to match the interface in `FileMetadataStripping.O11/IssFileMetadataStripping.cs`.
-3. Click **Edit Source Code** and replace the generated `Actions/FileMetadataStrippingActions.cs` with the implementation from `FileMetadataStripping.O11/`.
-4. Add the NuGet packages listed in `FileMetadataStripping.O11/FileMetadataStripping.O11.csproj`.
-5. **1-Click Publish** to Service Center.
+1. Locate the XIF in the repo at `xif/FileMetadataStripping.xif`.
+2. Open **Integration Studio** → **File → Open** → select the XIF.
+3. IS runs **Update Source Code** automatically, populating `Records.cs` with `RCFileMetadataResultRecord`.
+4. Close Integration Studio.
+5. Open `xif/FileMetadataStripping/Source/NET/FileMetadataStripping.sln` in **Visual Studio**.
+6. Restore NuGet packages (`dotnet restore` or VS Package Manager → Restore).
+7. Build the solution.
+8. Re-open Integration Studio → **1-Click Publish** to Service Center.
 
 ---
 
