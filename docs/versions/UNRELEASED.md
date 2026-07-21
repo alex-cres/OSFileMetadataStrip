@@ -6,6 +6,12 @@ Changes in progress — not yet published to OutSystems Forge.
 
 ---
 
+## Security
+
+- Upgraded `System.IO.Packaging` from 8.0.0 to 8.0.1 in `FileMetadataStripping.O11` and `xif/FileMetadataStripping/Source/NET` to address CVE-2024-43483 and CVE-2024-43484 (.NET Denial of Service vulnerabilities)
+
+---
+
 ## Added
 
 ### O11 Integration Studio Extension

@@ -81,7 +81,7 @@ Upload → StripFileMetadata → Clean BinaryData + ExtractedMetadata → AI API
 |---------|-----|-----|-------|
 | `OutSystems.ExternalLibraries.SDK` | 1.5.0 | — | ODC-only; O11 uses Integration Studio DLLs |
 | `PDFsharp` | 6.2.4 | 1.50.5147 | 6.x targets net6+ only; 1.50 is the last net48-compatible release |
-| `System.IO.Packaging` | — | 8.0.0 | Built into net10 BCL; explicit NuGet required on net48 |
+| `System.IO.Packaging` | — | 8.0.1 | Built into net10 BCL; explicit NuGet required on net48 |
 | `System.Text.Json` | — | 8.0.5 | Built into net10 BCL; explicit NuGet required on net48 |
 | `Magick.NET-Q8-AnyCPU` | 14.15.0 | 14.15.0 | Identical — netstandard2.0 |
 | `DocumentFormat.OpenXml` | 3.5.1 | 3.5.1 | Identical — netstandard2.0 |
