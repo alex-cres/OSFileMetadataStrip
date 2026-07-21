@@ -1,0 +1,22 @@
+#!/bin/sh
+# Auto-fix System.IO.Packaging version in the XIF source and backup csproj files.
+# Integration Studio regenerates these files on every save, reverting the
+# package version to whatever was last recorded in the .xif archive.
+# This hook ensures the patched version is always committed.
+
+OLD='System.IO.Packaging" Version="8\.0\.0"'
+NEW='System.IO.Packaging" Version="8.0.1"'
+
+fix_file() {
+  if [ -f "$1" ] && grep -q "$OLD" "$1"; then
+    sed -i "s/$OLD/$NEW/g" "$1"
+    git add "$1"
+    echo "pre-commit: bumped System.IO.Packaging 8.0.0 -> 8.0.1 in $1 (CVE-2024-43483/CVE-2024-43484)"
+  fi
+}
+
+fix_file "xif/FileMetadataStripping/Source/NET/FileMetadataStripping.csproj"
+
+for f in xif/FileMetadataStripping/Backups/*.csproj; do
+  fix_file "$f"
+done

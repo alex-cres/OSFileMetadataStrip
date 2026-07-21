@@ -115,6 +115,14 @@ All packages are Apache 2.0, MIT, or LGPL 2.1.
 
 See the [implementation guide](./01-exif-metadata-stripping.md) for full context on the attack vector and implementation options.
 
+### First-Time Setup
+
+After cloning, activate the pre-commit hooks (fixes NuGet versions that Integration Studio reverts on every save):
+
+```sh
+git config core.hooksPath .githooks
+```
+
 ### Build & Publish (ODC)
 
 Magick.NET includes native linux-x64 binaries, so the runtime identifier is required:
