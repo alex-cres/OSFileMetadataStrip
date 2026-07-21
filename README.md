@@ -1,6 +1,6 @@
 # OSFileMetadataStrip
 
-**OutSystems Developer Cloud (ODC) External Library**
+**ODC External Library + O11 Integration Studio Extension**
 
 Strips embedded metadata from uploaded files before they reach AI APIs or are stored — eliminating the file metadata injection attack vector at the preprocessing layer.
 
@@ -69,15 +69,25 @@ Upload → StripFileMetadata → Clean BinaryData + ExtractedMetadata → AI API
 
 ## Requirements
 
-- **Platform:** OutSystems Developer Cloud (ODC)
-- **Runtime:** Linux container (ODC Portal)
-- **.NET:** 10.0 LTS
-- **NuGet packages (all Apache 2.0, MIT, or LGPL 2.1):**
-  - `OutSystems.ExternalLibraries.SDK` — ODC External Library SDK
-  - `Magick.NET-Q8-AnyCPU` (Apache 2.0) — image processing and metadata stripping
-  - `TagLibSharp` (LGPL 2.1) — audio and video metadata stripping
-  - `PDFsharp` (MIT) — PDF /Info dictionary access
-  - `DocumentFormat.OpenXml` (MIT) — Office Open XML core properties
+| | ODC | O11 |
+|-|-----|-----|
+| Platform | OutSystems Developer Cloud | OutSystems 11 |
+| Runtime | Linux container (ODC Portal) | Windows (.NET Framework 4.8) |
+| .NET | 10.0 LTS | Framework 4.8 |
+
+### NuGet Packages
+
+| Package | ODC | O11 | Notes |
+|---------|-----|-----|-------|
+| `OutSystems.ExternalLibraries.SDK` | 1.5.0 | — | ODC-only; O11 uses Integration Studio DLLs |
+| `PDFsharp` | 6.2.4 | 1.50.5147 | 6.x targets net6+ only; 1.50 is the last net48-compatible release |
+| `System.IO.Packaging` | — | 8.0.0 | Built into net10 BCL; explicit NuGet required on net48 |
+| `System.Text.Json` | — | 8.0.5 | Built into net10 BCL; explicit NuGet required on net48 |
+| `Magick.NET-Q8-AnyCPU` | 14.15.0 | 14.15.0 | Identical — netstandard2.0 |
+| `DocumentFormat.OpenXml` | 3.5.1 | 3.5.1 | Identical — netstandard2.0 |
+| `TagLibSharp` | 2.3.0 | 2.3.0 | Identical — netstandard2.0 |
+
+All packages are Apache 2.0, MIT, or LGPL 2.1.
 
 ---
 
@@ -88,21 +98,35 @@ Upload → StripFileMetadata → Clean BinaryData + ExtractedMetadata → AI API
 3. Create and publish an External Library.
 4. In your ODC app, add the library as a dependency and call `StripFileMetadata` in your Server Action before forwarding the file.
 
+## Using in O11
+
+1. Open Integration Studio and create a new extension named `FileMetadataStripping`.
+2. Define the `StripFileMetadata` action and `FileMetadataResult` structure to match the interface in `FileMetadataStripping.O11/IssFileMetadataStripping.cs`.
+3. Click **Edit Source Code** and replace the generated `Actions/FileMetadataStrippingActions.cs` with the implementation from `FileMetadataStripping.O11/`.
+4. Add the NuGet packages listed in `FileMetadataStripping.O11/FileMetadataStripping.O11.csproj`.
+5. **1-Click Publish** to Service Center.
+
 ---
 
 ## Development
 
 See the [implementation guide](./01-exif-metadata-stripping.md) for full context on the attack vector and implementation options.
 
-### Build & Publish
+### Build & Publish (ODC)
 
 Magick.NET includes native linux-x64 binaries, so the runtime identifier is required:
 
 ```powershell
-cd FileMetadataStripping
-dotnet publish -c Release -r linux-x64 --no-self-contained
-# Zip the linux-x64 publish folder contents to ExternalLibrary.zip
-Compress-Archive -Path "bin/Release/net10.0/linux-x64/publish/*" -DestinationPath "ExternalLibrary.zip" -Force
+.\FileMetadataStripping\generate_upload_package.ps1
+```
+
+This publishes for `linux-x64`, zips the output to `ExternalLibrary.zip`, and verifies the file is under the 90 MB ODC Portal limit.
+
+### Build (O11)
+
+```powershell
+cd FileMetadataStripping.O11
+dotnet build -c Release
 ```
 
 ---
