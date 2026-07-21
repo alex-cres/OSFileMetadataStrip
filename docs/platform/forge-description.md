@@ -1,4 +1,4 @@
-# FileMetadaStripping — OutSystems Forge Description
+# FileMetadataStripping — OutSystems Forge Description
 
 > This file is the source of truth for the component description published on OutSystems Forge.
 > Update it whenever the component's behaviour, supported formats, or interface changes.
@@ -15,7 +15,7 @@ Strips EXIF, IPTC, XMP, and document metadata from uploaded files before they re
 ## Full Description
 
 ### What This Component Does
-**FileMetadaStripping** is an ODC External Library that removes all embedded metadata from uploaded files before they are forwarded to AI APIs or stored. It returns the clean file alongside a structured JSON record of what was found — enabling both security hardening and policy audit.
+**FileMetadataStripping** is a Library that removes all embedded metadata from uploaded files before they are forwarded to AI APIs or stored. It returns the clean file alongside a structured JSON record of what was found — enabling both security hardening and policy audit.
 
 File metadata containers (EXIF in images, /Info in PDFs, core properties in Office files) can carry arbitrary text that is invisible to users, browsers, and image classifiers. An attacker can embed prompt-injection instructions in these fields using any standard tool, without altering the file visually. If the file reaches an AI model as part of a context message, that text is processed as trusted input.
 
