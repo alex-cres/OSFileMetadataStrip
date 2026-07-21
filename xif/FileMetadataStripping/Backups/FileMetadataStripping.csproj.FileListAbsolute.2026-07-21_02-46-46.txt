@@ -1,0 +1,5 @@
+C:\Users\Alexandre\Documents\GitHub\OSFileMetadataStrip\xif\FileMetadataStripping\Source\NET\bin\OutSystems.NssFileMetadataStripping.dll
+C:\Users\Alexandre\Documents\GitHub\OSFileMetadataStrip\xif\FileMetadataStripping\Source\NET\bin\OutSystems.NssFileMetadataStripping.xml
+C:\Users\Alexandre\Documents\GitHub\OSFileMetadataStrip\xif\FileMetadataStripping\Source\NET\obj\Release\FileMetadataStripping.csproj.AssemblyReference.cache
+C:\Users\Alexandre\Documents\GitHub\OSFileMetadataStrip\xif\FileMetadataStripping\Source\NET\obj\Release\FileMetadataStripping.csproj.CoreCompileInputs.cache
+C:\Users\Alexandre\Documents\GitHub\OSFileMetadataStrip\xif\FileMetadataStripping\Source\NET\obj\Release\OutSystems.NssFileMetadataStripping.dll
