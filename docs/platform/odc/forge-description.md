@@ -35,9 +35,11 @@ Calling `StripFileMetadata` at the earliest point in any flow that accepts file 
 
 | Video | MP4, MOV, AVI, MKV, WebM, WMV | Metadata atoms/tags (title, conductor, copyright…) |
 
-| PDF | PDF | Title, Author, Subject, Keywords, Creator, Producer, and XMP catalog metadata stream |
+| PDF | PDF | Title, Author, Subject, Keywords, Creator, Producer, XMP catalog metadata stream, and annotation Author fields (comment, sticky-note, markup annotations) |
 
-| Office documents | DOCX, XLSX, PPTX | Creator, LastModifiedBy, Created/Modified dates, Title, Subject, Description, Keywords, Category, ContentStatus, Revision |
+| Office documents | DOCX, XLSX, PPTX | Core properties (Creator, LastModifiedBy, Created/Modified dates, Title, Subject, Description, Keywords, Category, ContentStatus, Revision, LastPrinted, Identifier, Version), application properties (Application, Company, Manager, AppVersion, Template, HyperlinkBase), custom property key/value pairs. Body author stripping (tracked changes, comment authors, Excel 365 xl/persons entries) requires `StripBodyAuthors = True`. |
+
+| ODF documents | ODT, ODS, ODP | dc:creator, dc:title, dc:description, dc:subject, meta:initial-creator, meta:generator, meta:editing-cycles, meta:editing-duration, and all meta:user-defined properties |
 
 | Plain text / other | TXT, CSV, MD, JSON, XML, HTML, and any unrecognised format | Passthrough — returned unchanged with `IsPassthrough = true` |
 
@@ -52,6 +54,8 @@ Calling `StripFileMetadata` at the earliest point in any flow that accepts file 
 |-----------|-----------|------|-------------|
 
 | `RawFile` | Input | BinaryData | The uploaded file (any supported format) |
+
+| `StripBodyAuthors` | Input | Boolean | When `True`, also blanks author names from OOXML tracked changes and comments (DOCX `w:author`/`w:initials`, XLSX `<author>` elements, PPTX `name`/`initials`). Default: `False`. |
 
 | *(return)* | Output | `FileMetadataResult` | Structure containing the clean file and extracted metadata |
 

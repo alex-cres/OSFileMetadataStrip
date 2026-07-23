@@ -1,10 +1,14 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.IO.Packaging;
 using System.Linq;
 using System.Text.Json.Nodes;
+using System.Xml.Linq;
 using ImageMagick;
 using PdfSharp.Pdf;
+using PdfSharp.Pdf.Advanced;
 using PdfSharp.Pdf.IO;
 using TagLib;
 
@@ -12,15 +16,16 @@ namespace OutSystems.NssFileMetadataStripping;
 
 public class CssFileMetadataStripping : IssFileMetadataStripping
 {
-    private enum FileCategory { Image, Pdf, OpenXml, Media, Passthrough }
+    private enum FileCategory { Image, Pdf, OpenXml, Odf, Media, Passthrough }
 
-    public void MssStripFileMetadata(byte[] ssRawFile, out RecFileMetadataResult ssStripFileMetadata)
+    public void MssStripFileMetadata(byte[] ssRawFile, bool ssStripBodyAuthors, out RecFileMetadataResult ssStripFileMetadata)
     {
         ssStripFileMetadata = DetectCategory(ssRawFile) switch
         {
             FileCategory.Image       => StripImageMetadata(ssRawFile),
             FileCategory.Pdf         => StripPdfMetadata(ssRawFile),
-            FileCategory.OpenXml     => StripOpenXmlMetadata(ssRawFile),
+            FileCategory.OpenXml     => StripOpenXmlMetadata(ssRawFile, ssStripBodyAuthors),
+            FileCategory.Odf         => StripOdfMetadata(ssRawFile),
             FileCategory.Media       => StripMediaMetadata(ssRawFile),
             FileCategory.Passthrough => Passthrough(ssRawFile),
             _                        => Passthrough(ssRawFile)
@@ -37,11 +42,11 @@ public class CssFileMetadataStripping : IssFileMetadataStripping
             && rawFile[2] == 0x44 && rawFile[3] == 0x46)
             return FileCategory.Pdf;
 
-        // Office Open XML (DOCX/XLSX/PPTX): ZIP PK signature
+        // Office Open XML (DOCX/XLSX/PPTX) or ODF (ODT/ODS/ODP): ZIP PK signature
         if (rawFile.Length >= 4
             && rawFile[0] == 0x50 && rawFile[1] == 0x4B
             && rawFile[2] == 0x03 && rawFile[3] == 0x04)
-            return FileCategory.OpenXml;
+            return IsOdfFormat(rawFile) ? FileCategory.Odf : FileCategory.OpenXml;
 
         // Images: detected by Magick.NET (JPEG, PNG, GIF, BMP, TIFF, WebP, TGA, 100+ more)
         try
@@ -175,6 +180,28 @@ public class CssFileMetadataStripping : IssFileMetadataStripping
         {
             var (extractedMetadata, removedEntryCount) = ExtractPdfMetadata(document);
 
+            // Clear annotation /Author entries on every page.
+            var annotAuthors = new HashSet<string>(StringComparer.Ordinal);
+            int annotEntries = 0;
+            for (int i = 0; i < document.PageCount; i++)
+            {
+                var (cleared, authors) = ClearPageAnnotationAuthors(document.Pages[i]);
+                annotEntries += cleared;
+                foreach (var a in authors) annotAuthors.Add(a);
+            }
+
+            if (annotEntries > 0)
+            {
+                var metaNode = extractedMetadata == "[]"
+                    ? new JsonObject()
+                    : JsonNode.Parse(extractedMetadata)!.AsObject();
+                var arr = new JsonArray();
+                foreach (var a in annotAuthors.OrderBy(x => x)) arr.Add(JsonValue.Create(a));
+                metaNode["annotationAuthors"] = arr;
+                extractedMetadata = metaNode.ToJsonString();
+                removedEntryCount += annotEntries;
+            }
+
             document.Info.Title    = string.Empty;
             document.Info.Author   = string.Empty;
             document.Info.Subject  = string.Empty;
@@ -228,7 +255,7 @@ public class CssFileMetadataStripping : IssFileMetadataStripping
 
     // ── Office Open XML (DOCX / XLSX / PPTX) ─────────────────────────────────
 
-    private static RecFileMetadataResult StripOpenXmlMetadata(byte[] rawFile)
+    private static RecFileMetadataResult StripOpenXmlMetadata(byte[] rawFile, bool stripBodyAuthors)
     {
         try
         {
@@ -236,30 +263,64 @@ public class CssFileMetadataStripping : IssFileMetadataStripping
             ms.Write(rawFile, 0, rawFile.Length);
             ms.Position = 0;
 
-            using var package = Package.Open(ms, FileMode.Open, FileAccess.ReadWrite);
+            var root       = new JsonObject();
+            var count      = 0;
+            var partWrites = new Dictionary<string, XDocument>();
 
-            var (extractedMetadata, removedEntryCount) = ExtractOpenXmlMetadata(package.PackageProperties);
+            using (var package = Package.Open(ms, FileMode.Open, FileAccess.ReadWrite))
+            {
+                ExtractOpenXmlCoreMetadata(package.PackageProperties, root, ref count);
+                var coreProps = package.PackageProperties;
+                coreProps.Creator        = null;
+                coreProps.LastModifiedBy = null;
+                coreProps.Created        = null;
+                coreProps.Modified       = null;
+                coreProps.Title          = null;
+                coreProps.Subject        = null;
+                coreProps.Description    = null;
+                coreProps.Keywords       = null;
+                coreProps.Category       = null;
+                coreProps.ContentStatus  = null;
+                coreProps.Revision       = null;
+                coreProps.LastPrinted    = null;
+                coreProps.Identifier     = null;
+                coreProps.Version        = null;
 
-            var props = package.PackageProperties;
-            props.Creator        = null;
-            props.LastModifiedBy = null;
-            props.Created        = null;
-            props.Modified       = null;
-            props.Title          = null;
-            props.Subject        = null;
-            props.Description    = null;
-            props.Keywords       = null;
-            props.Category       = null;
-            props.ContentStatus  = null;
-            props.Revision       = null;
+                ExtractAndClearAppProperties(package, root, ref count, partWrites);
+                ExtractAndClearCustomProperties(package, root, ref count, partWrites);
+                if (stripBodyAuthors)
+                    StripOoxmlAuthorNames(package, root, ref count, partWrites);
+            }
 
-            package.Close();
+            if (partWrites.Count > 0)
+            {
+                var packageBytes = ms.ToArray();
+                using var zipMs = new MemoryStream();
+                zipMs.Write(packageBytes, 0, packageBytes.Length);
+                zipMs.Position = 0;
+                using (var zip = new ZipArchive(zipMs, ZipArchiveMode.Update, leaveOpen: true))
+                {
+                    foreach (var kvp in partWrites)
+                    {
+                        zip.GetEntry(kvp.Key)?.Delete();
+                        using var s = zip.CreateEntry(kvp.Key).Open();
+                        kvp.Value.Save(s);
+                    }
+                }
+                return new RecFileMetadataResult
+                {
+                    ssCleanFile         = zipMs.ToArray(),
+                    ssExtractedMetadata = count > 0 ? root.ToJsonString() : "[]",
+                    ssRemovedEntryCount = count,
+                    ssIsPassthrough     = false
+                };
+            }
 
             return new RecFileMetadataResult
             {
                 ssCleanFile         = ms.ToArray(),
-                ssExtractedMetadata = extractedMetadata,
-                ssRemovedEntryCount = removedEntryCount,
+                ssExtractedMetadata = count > 0 ? root.ToJsonString() : "[]",
+                ssRemovedEntryCount = count,
                 ssIsPassthrough     = false
             };
         }
@@ -284,15 +345,13 @@ public class CssFileMetadataStripping : IssFileMetadataStripping
         }
     }
 
-    private static (string json, int count) ExtractOpenXmlMetadata(PackageProperties props)
+    private static void ExtractOpenXmlCoreMetadata(PackageProperties props, JsonObject root, ref int count)
     {
-        var root  = new JsonObject();
-        var count = 0;
-
+        int localCount = 0;
         void Capture(string key, object? value)
         {
             var str = value?.ToString();
-            if (!string.IsNullOrEmpty(str)) { root[key] = JsonValue.Create(str); count++; }
+            if (!string.IsNullOrEmpty(str)) { root[key] = JsonValue.Create(str); localCount++; }
         }
 
         Capture("creator",        props.Creator);
@@ -306,6 +365,397 @@ public class CssFileMetadataStripping : IssFileMetadataStripping
         Capture("category",       props.Category);
         Capture("contentStatus",  props.ContentStatus);
         Capture("revision",       props.Revision);
+        Capture("lastPrinted",    props.LastPrinted);
+        Capture("identifier",     props.Identifier);
+        Capture("version",        props.Version);
+
+        count += localCount;
+    }
+
+    private static void ExtractAndClearAppProperties(Package package, JsonObject root, ref int count,
+        Dictionary<string, XDocument> partWrites)
+    {
+        var appUri = PackUriHelper.CreatePartUri(new Uri("/docProps/app.xml", UriKind.Relative));
+        if (!package.PartExists(appUri)) return;
+
+        XDocument xdoc;
+        using (var stream = package.GetPart(appUri).GetStream(FileMode.Open, FileAccess.Read))
+            xdoc = XDocument.Load(stream);
+
+        XNamespace ep = "http://schemas.openxmlformats.org/officeDocument/2006/extended-properties";
+        bool modified = false;
+        var fields = new[]
+        {
+            ("Application",   "appApplication"),
+            ("Company",       "appCompany"),
+            ("Manager",       "appManager"),
+            ("AppVersion",    "appVersion"),
+            ("Template",      "appTemplate"),
+            ("HyperlinkBase", "appHyperlinkBase")
+        };
+        foreach (var (xmlField, jsonKey) in fields)
+        {
+            var el = xdoc.Root?.Element(ep + xmlField);
+            if (el != null && !string.IsNullOrEmpty(el.Value))
+            {
+                root[jsonKey] = JsonValue.Create(el.Value);
+                count++;
+                el.Value = string.Empty;
+                modified = true;
+            }
+        }
+
+        if (modified)
+            partWrites["docProps/app.xml"] = xdoc;
+    }
+
+    private static void ExtractAndClearCustomProperties(Package package, JsonObject root, ref int count,
+        Dictionary<string, XDocument> partWrites)
+    {
+        var customUri = PackUriHelper.CreatePartUri(new Uri("/docProps/custom.xml", UriKind.Relative));
+        if (!package.PartExists(customUri)) return;
+
+        XDocument xdoc;
+        using (var stream = package.GetPart(customUri).GetStream(FileMode.Open, FileAccess.Read))
+            xdoc = XDocument.Load(stream);
+
+        XNamespace cp = "http://schemas.openxmlformats.org/officeDocument/2006/custom-properties";
+        var customProps = new JsonObject();
+        foreach (var prop in xdoc.Root?.Elements(cp + "property") ?? Enumerable.Empty<XElement>())
+        {
+            var name  = prop.Attribute("name")?.Value;
+            var value = prop.Elements().FirstOrDefault()?.Value;
+            if (!string.IsNullOrEmpty(name))
+            {
+                customProps[name] = JsonValue.Create(value ?? string.Empty);
+                count++;
+            }
+        }
+
+        if (customProps.Count > 0)
+        {
+            root["customProperties"] = customProps;
+            xdoc.Root?.RemoveNodes();
+            partWrites["docProps/custom.xml"] = xdoc;
+        }
+    }
+
+    private static readonly HashSet<string> _wordAuthorContentTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.endnotes+xml",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"
+    };
+
+    private static void StripOoxmlAuthorNames(Package package, JsonObject root, ref int count,
+        Dictionary<string, XDocument> partWrites)
+    {
+        var authorNames = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var part in package.GetParts())
+        {
+            var ct = part.ContentType;
+            XDocument? modified;
+            if (_wordAuthorContentTypes.Contains(ct))
+                modified = StripWordAuthorAttributes(part, authorNames);
+            else if (ct == "application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml")
+                modified = StripExcelCommentAuthors(part, authorNames);
+            else if (ct == "application/vnd.ms-excel.person+xml")
+                modified = StripExcelPersonAuthors(part, authorNames);
+            else if (ct == "application/vnd.openxmlformats-officedocument.presentationml.commentAuthors+xml")
+                modified = StripPptCommentAuthors(part, authorNames);
+            else
+                continue;
+
+            if (modified != null)
+                partWrites[part.Uri.ToString().TrimStart('/')] = modified;
+        }
+
+        if (authorNames.Count > 0)
+        {
+            var arr = new JsonArray();
+            foreach (var name in authorNames.OrderBy(x => x))
+                arr.Add(JsonValue.Create(name));
+            root["strippedAuthors"] = arr;
+            count += authorNames.Count;
+        }
+    }
+
+    private static XDocument? StripWordAuthorAttributes(PackagePart part, HashSet<string> authorNames)
+    {
+        XDocument xdoc;
+        using (var stream = part.GetStream(FileMode.Open, FileAccess.Read))
+            xdoc = XDocument.Load(stream);
+
+        XNamespace w       = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+        XName authorAttr   = w + "author";
+        XName initialsAttr = w + "initials";
+        bool modified      = false;
+
+        foreach (var el in xdoc.Descendants())
+        {
+            var author = el.Attribute(authorAttr);
+            if (author != null && !string.IsNullOrEmpty(author.Value))
+            {
+                authorNames.Add(author.Value);
+                author.Value = string.Empty;
+                modified = true;
+            }
+            var initials = el.Attribute(initialsAttr);
+            if (initials != null && !string.IsNullOrEmpty(initials.Value))
+            {
+                initials.Value = string.Empty;
+                modified = true;
+            }
+        }
+
+        return modified ? xdoc : null;
+    }
+
+    private static XDocument? StripExcelCommentAuthors(PackagePart part, HashSet<string> authorNames)
+    {
+        XDocument xdoc;
+        using (var stream = part.GetStream(FileMode.Open, FileAccess.Read))
+            xdoc = XDocument.Load(stream);
+
+        XNamespace xl = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+        bool modified = false;
+
+        foreach (var el in xdoc.Descendants(xl + "author"))
+        {
+            if (!string.IsNullOrEmpty(el.Value))
+            {
+                authorNames.Add(el.Value);
+                el.Value = string.Empty;
+                modified = true;
+            }
+        }
+
+        return modified ? xdoc : null;
+    }
+
+    private static XDocument? StripPptCommentAuthors(PackagePart part, HashSet<string> authorNames)
+    {
+        XDocument xdoc;
+        using (var stream = part.GetStream(FileMode.Open, FileAccess.Read))
+            xdoc = XDocument.Load(stream);
+
+        XNamespace p = "http://schemas.openxmlformats.org/presentationml/2006/main";
+        bool modified = false;
+
+        foreach (var el in xdoc.Descendants(p + "cmAuthor"))
+        {
+            var name = el.Attribute("name");
+            if (name != null && !string.IsNullOrEmpty(name.Value))
+            {
+                authorNames.Add(name.Value);
+                name.Value = string.Empty;
+                modified = true;
+            }
+            var initials = el.Attribute("initials");
+            if (initials != null && !string.IsNullOrEmpty(initials.Value))
+            {
+                initials.Value = string.Empty;
+                modified = true;
+            }
+        }
+
+        return modified ? xdoc : null;
+    }
+
+    private static XDocument? StripExcelPersonAuthors(PackagePart part, HashSet<string> authorNames)
+    {
+        XDocument xdoc;
+        using (var stream = part.GetStream(FileMode.Open, FileAccess.Read))
+            xdoc = XDocument.Load(stream);
+
+        XNamespace ns = "http://schemas.microsoft.com/office/spreadsheetml/2017/11/persons";
+        bool modified = false;
+
+        foreach (var el in xdoc.Descendants(ns + "Person"))
+        {
+            var displayName = el.Attribute("displayName");
+            if (displayName != null && !string.IsNullOrEmpty(displayName.Value))
+            {
+                authorNames.Add(displayName.Value);
+                displayName.Value = string.Empty;
+                modified = true;
+            }
+            var userId = el.Attribute("userId");
+            if (userId != null && !string.IsNullOrEmpty(userId.Value))
+            {
+                userId.Value = string.Empty;
+                modified = true;
+            }
+        }
+
+        return modified ? xdoc : null;
+    }
+
+    private static (int cleared, string[] authors) ClearPageAnnotationAuthors(PdfPage page)
+    {
+        if (!page.Elements.ContainsKey("/Annots")) return (0, new string[0]);
+
+        var annotsObj = page.Elements["/Annots"];
+        var annots    = annotsObj as PdfArray;
+        if (annots == null && annotsObj is PdfReference ar) annots = ar.Value as PdfArray;
+        if (annots == null || annots.Elements.Count == 0) return (0, new string[0]);
+
+        var authors = new HashSet<string>(StringComparer.Ordinal);
+        int cleared = 0;
+
+        for (int j = 0; j < annots.Elements.Count; j++)
+        {
+            var item      = annots.Elements[j];
+            var annotDict = item as PdfDictionary;
+            if (annotDict == null && item is PdfReference annotRef)
+                annotDict = annotRef.Value as PdfDictionary;
+            if (annotDict == null) continue;
+
+            if (annotDict.Elements.ContainsKey("/Author"))
+            {
+                var author = annotDict.Elements.GetString("/Author");
+                if (!string.IsNullOrEmpty(author)) authors.Add(author);
+                annotDict.Elements.Remove("/Author");
+                cleared++;
+            }
+        }
+
+        return (cleared, authors.ToArray());
+    }
+
+    // ── ODF (LibreOffice ODT / ODS / ODP) ─────────────────────────────────────
+
+    private static bool IsOdfFormat(byte[] rawFile)
+    {
+        try
+        {
+            using var ms  = new MemoryStream(rawFile, writable: false);
+            using var zip = new ZipArchive(ms, ZipArchiveMode.Read, leaveOpen: false);
+            var entry = zip.GetEntry("mimetype");
+            if (entry == null) return false;
+            using var stream = entry.Open();
+            using var reader = new System.IO.StreamReader(stream, System.Text.Encoding.ASCII,
+                false, 64, false);
+            var mime = reader.ReadToEnd().Trim();
+            return mime.StartsWith("application/vnd.oasis.opendocument.",
+                StringComparison.OrdinalIgnoreCase);
+        }
+        catch { return false; }
+    }
+
+    private static RecFileMetadataResult StripOdfMetadata(byte[] rawFile)
+    {
+        try
+        {
+            var zipMs = new MemoryStream();
+            zipMs.Write(rawFile, 0, rawFile.Length);
+            zipMs.Position = 0;
+
+            int    count             = 0;
+            string extractedMetadata = "[]";
+
+            using (var zip = new ZipArchive(zipMs, ZipArchiveMode.Update, leaveOpen: true))
+            {
+                var metaEntry = zip.GetEntry("meta.xml");
+                if (metaEntry != null)
+                {
+                    XDocument xdoc;
+                    using (var s = metaEntry.Open()) xdoc = XDocument.Load(s);
+
+                    var (json, n) = ExtractAndClearOdfMetadata(xdoc);
+                    if (n > 0)
+                    {
+                        extractedMetadata = json;
+                        count             = n;
+                        metaEntry.Delete();
+                        using var ws = zip.CreateEntry("meta.xml").Open();
+                        xdoc.Save(ws);
+                    }
+                }
+            }
+
+            return new RecFileMetadataResult
+            {
+                ssCleanFile         = zipMs.ToArray(),
+                ssExtractedMetadata = extractedMetadata,
+                ssRemovedEntryCount = count,
+                ssIsPassthrough     = false
+            };
+        }
+        catch (Exception ex) when (
+            ex is InvalidDataException    ||
+            ex is NotSupportedException   ||
+            ex is System.Xml.XmlException)
+        {
+            var note = new JsonObject
+            {
+                ["processingError"] = JsonValue.Create(
+                    "Metadata stripping was skipped — the ODF file could not be opened. " +
+                    $"Original file returned unchanged. Reason: {ex.GetType().Name}: {ex.Message}")
+            };
+            return new RecFileMetadataResult
+            {
+                ssCleanFile         = rawFile,
+                ssExtractedMetadata = note.ToJsonString(),
+                ssRemovedEntryCount = 0,
+                ssIsPassthrough     = false
+            };
+        }
+    }
+
+    private static (string json, int count) ExtractAndClearOdfMetadata(XDocument metaDoc)
+    {
+        XNamespace office = "urn:oasis:names:tc:opendocument:xmlns:office:1.0";
+        XNamespace dc     = "http://purl.org/dc/elements/1.1/";
+        XNamespace meta   = "urn:oasis:names:tc:opendocument:xmlns:meta:1.0";
+
+        var officeMeta = metaDoc.Descendants()
+            .FirstOrDefault(e => e.Name.LocalName == "meta"
+                              && e.Name.Namespace == office);
+        if (officeMeta == null) return ("[]", 0);
+
+        var root  = new JsonObject();
+        var count = 0;
+
+        void Capture(string key, XElement? el)
+        {
+            if (el != null && !string.IsNullOrEmpty(el.Value))
+            {
+                root[key] = JsonValue.Create(el.Value);
+                count++;
+                el.Value = string.Empty;
+            }
+        }
+
+        Capture("title",           officeMeta.Element(dc    + "title"));
+        Capture("creator",         officeMeta.Element(dc    + "creator"));
+        Capture("description",     officeMeta.Element(dc    + "description"));
+        Capture("subject",         officeMeta.Element(dc    + "subject"));
+        Capture("initialCreator",  officeMeta.Element(meta  + "initial-creator"));
+        Capture("generator",       officeMeta.Element(meta  + "generator"));
+        Capture("editingCycles",   officeMeta.Element(meta  + "editing-cycles"));
+        Capture("editingDuration", officeMeta.Element(meta  + "editing-duration"));
+
+        var userDefined = officeMeta.Elements(meta + "user-defined").ToList();
+        if (userDefined.Count > 0)
+        {
+            var customProps = new JsonObject();
+            foreach (var el in userDefined)
+            {
+                var name = el.Attribute(meta + "name")?.Value;
+                if (!string.IsNullOrEmpty(name))
+                {
+                    customProps[name] = JsonValue.Create(el.Value);
+                    count++;
+                }
+            }
+            if (customProps.Count > 0) root["userDefinedProperties"] = customProps;
+            foreach (var el in userDefined) el.Remove();
+        }
 
         return count > 0 ? (root.ToJsonString(), count) : ("[]", 0);
     }

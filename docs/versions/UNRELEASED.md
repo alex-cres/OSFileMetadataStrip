@@ -14,6 +14,22 @@ Changes in progress — not yet published to OutSystems Forge.
 
 ## Added
 
+### OOXML (DOCX, XLSX, PPTX)
+
+- `StripOpenXmlMetadata` now strips application properties from `docProps/app.xml`: Application, Company, Manager, AppVersion, Template, and HyperlinkBase are blanked and exposed as `appApplication`, `appCompany`, `appManager`, `appVersion`, `appTemplate`, and `appHyperlinkBase` in `ExtractedMetadata`.
+- `StripOpenXmlMetadata` now strips all custom property name/value pairs from `docProps/custom.xml`; the key `customProperties` in `ExtractedMetadata` contains a JSON object of every custom property found before removal.
+- `StripOpenXmlMetadata` now strips author names from tracked changes and comments embedded in OOXML document bodies: `w:author` and `w:initials` attributes in DOCX files (document.xml, headers, footers, footnotes, endnotes, comments.xml); author text nodes in XLSX comment files (xl/comments*.xml); `name` and `initials` attributes in PPTX comment-author entries (ppt/commentAuthors.xml). Distinct author names are alphabetically sorted and exposed as `strippedAuthors` in `ExtractedMetadata`. The count of stripped author names is included in `RemovedEntryCount`.
+- `StripOpenXmlMetadata` now clears three previously-skipped `PackageProperties` fields: `LastPrinted`, `Identifier`, and `Version`. Values are extracted into `ExtractedMetadata` under the keys `lastPrinted`, `identifier`, and `version`, then set to null. Applies to DOCX, XLSX, and PPTX.
+- When `StripBodyAuthors = True`, `StripOpenXmlMetadata` now also blanks `displayName` and `userId` attributes in `xl/persons/person.xml` — Microsoft 365 threaded comment author entries. Distinct author names are added to the `strippedAuthors` array in `ExtractedMetadata`.
+
+### PDF
+
+- `StripPdfMetadata` now removes the `/Author` entry from all comment, sticky-note, and markup annotations. Distinct annotation author names are collected and recorded in `ExtractedMetadata` under the key `annotationAuthors` as a JSON array. The count of removed entries is included in `RemovedEntryCount`.
+
+### ODF (ODT, ODS, ODP)
+
+- `StripOdfMetadata` — new method — actively strips metadata from ODF files (.odt, .ods, .odp). Previously, ODF files were silently passed through the OOXML processing path (a no-op). ODF files are now detected by the presence of a `mimetype` entry in their ZIP container and routed to `StripOdfMetadata`, which clears: `dc:creator`, `dc:title`, `dc:description`, `dc:subject`, `meta:initial-creator`, `meta:generator`, `meta:editing-cycles`, `meta:editing-duration`, and all `meta:user-defined` properties. Keys in `ExtractedMetadata`: `creator`, `title`, `description`, `subject`, `initialCreator`, `generator`, `editingCycles`, `editingDuration`, `userDefinedProperties`.
+
 ### O11 Integration Studio Extension
 
 - `FileMetadataStripping.O11/` — full .NET Framework 4.8 port of the extension
@@ -48,6 +64,8 @@ Changes in progress — not yet published to OutSystems Forge.
 - 6 new xUnit tests added to `OpenXmlTests` (ODC + O11): same contract for encrypted/corrupted OOXML files.
 
 - `README.md` — updated to cover both ODC and O11 platforms, NuGet diff table, O11 usage and build instructions
+- **Breaking change:** `StripFileMetadata` has a new `StripBodyAuthors` Boolean input parameter (default `False`). Existing consumers must explicitly wire this input in OutSystems Studio; leaving it unwired uses the default of `False`, preserving the previous behaviour of not modifying the document body.
+- OOXML body-author stripping (`w:author`/`w:initials` in DOCX, `<author>` elements in XLSX, `name`/`initials` in PPTX comment authors) is now opt-in: performed only when `StripBodyAuthors = True`. When `False`, only core, application, and custom properties are stripped.
 
 ## Fixed
 

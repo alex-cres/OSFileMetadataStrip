@@ -5,14 +5,22 @@ Keep this file under 1000 characters (excluding this header block).
 
 ---
 
-Office Open XML - only core document properties are stripped; tracked changes, comments, embedded objects, and custom properties retain their metadata.
+Embedded objects - OOXML charts, images, and OLE containers retain their own metadata.
 
-ICC colour profiles - removed from images alongside EXIF/IPTC/XMP; output images fall back to sRGB rendering.
+ICC profiles - removed alongside image EXIF/IPTC/XMP; sRGB fallback.
 
-Memory usage - no file-size limit is enforced; the entire file is loaded into memory. Very large files may hit ODC platform binary limits.
+Memory - no file-size limit; entire file loaded into memory.
 
-Content only - metadata containers are removed, but steganographic payloads hidden inside pixel values are not detected or disrupted. Pair with OSStegoGuard and OSQRGuard.
+Steganography - pixel-level payloads not detected. Pair with OSStegoGuard and OSQRGuard.
 
-Unreadable audio/video - files that cannot be parsed by the media engine are returned unchanged with a processingError note in ExtractedMetadata; no exception is raised.
+Unreadable files - encrypted/corrupted PDF/OOXML/audio-video returned unchanged with a processingError note; no exception raised.
 
-Unreadable or encrypted PDF and OOXML - files that cannot be opened (e.g. password-protected or corrupted) are returned unchanged with a processingError note in ExtractedMetadata and RemovedEntryCount of 0; no exception is raised.
+Body authors - stripped only when StripBodyAuthors = True.
+
+Excel threaded comments - xl/threadedComments/ XML content retains author names; not stripped.
+
+PDF embedded images - JPEG/PNG inside PDF content streams retain their own EXIF.
+
+VBA projects - macro-enabled OOXML retain author data in vbaProject.bin.
+
+Digital signatures - signer identity in _xmlsignatures/ not stripped.

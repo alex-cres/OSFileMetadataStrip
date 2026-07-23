@@ -30,7 +30,7 @@ This file lists the open-source packages used by **OSFileMetadataStrip** at runt
 - **License:** [MIT License](https://opensource.org/licenses/MIT)
 - **Source:** https://github.com/empira/PDFsharp
 - **NuGet:** https://www.nuget.org/packages/PDFsharp
-- **Purpose:** Reading and clearing PDF /Info dictionary fields (Title, Author, Subject, Keywords, Creator).
+- **Purpose:** Reading and clearing PDF /Info dictionary fields (Title, Author, Subject, Keywords, Creator, Producer) and the catalog-level XMP metadata stream (/Metadata entry).
 
 ---
 
@@ -41,7 +41,7 @@ This file lists the open-source packages used by **OSFileMetadataStrip** at runt
 - **Copyright:** Microsoft Corporation
 - **Source:** https://github.com/dotnet/Open-XML-SDK
 - **NuGet:** https://www.nuget.org/packages/DocumentFormat.OpenXml
-- **Purpose:** Reading and clearing Office Open XML package core properties (Creator, Title, Subject, etc.) for DOCX, XLSX, and PPTX files.
+- **Purpose:** Reading and clearing Office Open XML metadata across all three property stores: core properties (Creator, LastModifiedBy, Created, Modified, Title, Subject, Description, Keywords, Category, ContentStatus, Revision), application properties (Application, Company, Manager, AppVersion, Template, HyperlinkBase), and custom property key/value pairs. Also used for structured XML access when `StripBodyAuthors = True` (author attributes in DOCX, XLSX, PPTX document body parts).
 
 ---
 

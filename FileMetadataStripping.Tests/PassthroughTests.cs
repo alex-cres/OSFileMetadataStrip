@@ -18,14 +18,14 @@ public class PassthroughTests
 {
     private readonly IFileMetadataStripping _sut = new FileMetadataStripping();
 
-    // ── Plain text passthrough ─────────────────────────────────────────────────
+    // â”€â”€ Plain text passthrough â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void StripFileMetadata_PlainText_IsPassthroughIsTrue()
     {
-        var input = "Hello world — plain text file"u8.ToArray();
+        var input = "Hello world â€” plain text file"u8.ToArray();
 
-        var result = _sut.StripFileMetadata(input);
+        var result = _sut.StripFileMetadata(input, false);
 
         Assert.True(result.IsPassthrough);
     }
@@ -35,7 +35,7 @@ public class PassthroughTests
     {
         var input = "Creator: attacker\nContent: some data"u8.ToArray();
 
-        var result = _sut.StripFileMetadata(input);
+        var result = _sut.StripFileMetadata(input, false);
 
         Assert.Equal(input, result.CleanFile);
     }
@@ -45,18 +45,18 @@ public class PassthroughTests
     {
         var input = "col1,col2,col3\nval1,val2,val3"u8.ToArray(); // CSV-like
 
-        var result = _sut.StripFileMetadata(input);
+        var result = _sut.StripFileMetadata(input, false);
 
         Assert.Equal(0, result.RemovedEntryCount);
         Assert.Equal("[]", result.ExtractedMetadata);
     }
 
-    // ── IsPassthrough = false for active formats ───────────────────────────────
+    // â”€â”€ IsPassthrough = false for active formats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void StripFileMetadata_Image_IsPassthroughIsFalse()
     {
-        var result = _sut.StripFileMetadata(TestHelpers.CreateJpeg());
+        var result = _sut.StripFileMetadata(TestHelpers.CreateJpeg(), false);
 
         Assert.False(result.IsPassthrough);
     }
@@ -64,7 +64,7 @@ public class PassthroughTests
     [Fact]
     public void StripFileMetadata_Pdf_IsPassthroughIsFalse()
     {
-        var result = _sut.StripFileMetadata(TestHelpers.CreatePdf());
+        var result = _sut.StripFileMetadata(TestHelpers.CreatePdf(), false);
 
         Assert.False(result.IsPassthrough);
     }
@@ -72,7 +72,7 @@ public class PassthroughTests
     [Fact]
     public void StripFileMetadata_Docx_IsPassthroughIsFalse()
     {
-        var result = _sut.StripFileMetadata(TestHelpers.CreateDocx());
+        var result = _sut.StripFileMetadata(TestHelpers.CreateDocx(), false);
 
         Assert.False(result.IsPassthrough);
     }

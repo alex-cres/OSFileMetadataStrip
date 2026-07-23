@@ -3,7 +3,9 @@ using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using ImageMagick;
 using PdfSharp.Pdf;
+using PdfSharp.Pdf.Advanced;
 using System.IO.Packaging;
+using System.Xml.Linq;
 using TagLib;
 
 namespace FileMetadataStripping.Tests;
@@ -360,5 +362,314 @@ internal static class TestHelpers
         public Stream ReadStream  => _stream;
         public Stream WriteStream => _stream;
         public void CloseStream(Stream stream) { }
+    }
+
+    // ── Task 8: App and custom properties ─────────────────────────────────────
+
+    internal static byte[] CreateDocxWithAppProperties(string? company = null, string? manager = null)
+    {
+        // Use Package.Open to inject docProps/app.xml; avoids SDK part creation which
+        // can produce inconsistent compressed-data entries on .NET Framework 4.8.
+        var rawDocx = CreateDocx();
+        var ms = new MemoryStream();
+        ms.Write(rawDocx, 0, rawDocx.Length);
+        ms.Position = 0;
+
+        using (var package = Package.Open(ms, FileMode.Open, FileAccess.ReadWrite))
+        {
+            var appUri = PackUriHelper.CreatePartUri(new Uri("/docProps/app.xml", UriKind.Relative));
+            var appPart = package.CreatePart(appUri,
+                "application/vnd.openxmlformats-officedocument.extended-properties+xml",
+                CompressionOption.Normal);
+            package.CreateRelationship(appUri, TargetMode.Internal,
+                "http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties");
+
+            XNamespace ep = "http://schemas.openxmlformats.org/officeDocument/2006/extended-properties";
+            var xdoc = new XDocument(
+                new XDeclaration("1.0", "UTF-8", "yes"),
+                new XElement(ep + "Properties",
+                    company != null ? new XElement(ep + "Company", company) : null,
+                    manager  != null ? new XElement(ep + "Manager",  manager)  : null));
+            using var stream = appPart.GetStream(FileMode.Create, FileAccess.Write);
+            xdoc.Save(stream);
+        }
+
+        return ms.ToArray();
+    }
+
+    internal static byte[] CreateDocxWithCustomProperties(Dictionary<string, string> properties)
+    {
+        var rawDocx = CreateDocx();
+        var ms = new MemoryStream();
+        ms.Write(rawDocx, 0, rawDocx.Length);
+        ms.Position = 0;
+
+        using (var package = Package.Open(ms, FileMode.Open, FileAccess.ReadWrite))
+        {
+            var customUri = PackUriHelper.CreatePartUri(new Uri("/docProps/custom.xml", UriKind.Relative));
+            var customPart = package.CreatePart(customUri,
+                "application/vnd.openxmlformats-officedocument.custom-properties+xml",
+                CompressionOption.Normal);
+            package.CreateRelationship(customUri, TargetMode.Internal,
+                "http://schemas.openxmlformats.org/officeDocument/2006/relationships/custom-properties");
+
+            XNamespace cp = "http://schemas.openxmlformats.org/officeDocument/2006/custom-properties";
+            XNamespace vt = "http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes";
+            var propsEl = new XElement(cp + "Properties",
+                new XAttribute(XNamespace.Xmlns + "vt", vt));
+            int pid = 2;
+            foreach (var kvp in properties)
+            {
+                propsEl.Add(new XElement(cp + "property",
+                    new XAttribute("fmtid", "{D5CDD505-2E9C-101B-9397-08002B2CF9AE}"),
+                    new XAttribute("pid", pid++),
+                    new XAttribute("name", kvp.Key),
+                    new XElement(vt + "lpwstr", kvp.Value)));
+            }
+            var xdoc = new XDocument(new XDeclaration("1.0", "UTF-8", "yes"), propsEl);
+            using var stream = customPart.GetStream(FileMode.Create, FileAccess.Write);
+            xdoc.Save(stream);
+        }
+
+        return ms.ToArray();
+    }
+
+    // ── Task 10: Tracked changes and comment authors ───────────────────────────
+
+    internal static byte[] CreateDocxWithTrackedChanges(string authorName)
+    {
+        // Start from a valid DOCX, then inject a w:ins element directly into document.xml.
+        var rawDocx = CreateDocx();
+        var ms = new MemoryStream();
+        ms.Write(rawDocx, 0, rawDocx.Length);
+        ms.Position = 0;
+
+        using var package = Package.Open(ms, FileMode.Open, FileAccess.ReadWrite);
+        var docUri = PackUriHelper.CreatePartUri(new Uri("/word/document.xml", UriKind.Relative));
+        var part = package.GetPart(docUri);
+        XDocument xdoc;
+        using (var stream = part.GetStream(FileMode.Open, FileAccess.Read))
+            xdoc = XDocument.Load(stream);
+
+        XNamespace w = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+        var body = xdoc.Descendants(w + "body").First();
+        body.AddFirst(new XElement(w + "p",
+            new XElement(w + "ins",
+                new XAttribute(w + "id", "1"),
+                new XAttribute(w + "author", authorName),
+                new XAttribute(w + "date", "2024-01-01T00:00:00Z"),
+                new XElement(w + "r", new XElement(w + "t", "tracked")))));
+
+        using (var stream = part.GetStream(FileMode.Create, FileAccess.Write))
+            xdoc.Save(stream);
+
+        package.Close();
+        return ms.ToArray();
+    }
+
+    internal static byte[] CreateDocxWithComment(string authorName)
+    {
+        // Inject word/comments.xml via Package.Open to avoid SDK part-creation issues on net48.
+        var rawDocx = CreateDocx();
+        var ms = new MemoryStream();
+        ms.Write(rawDocx, 0, rawDocx.Length);
+        ms.Position = 0;
+
+        using (var package = Package.Open(ms, FileMode.Open, FileAccess.ReadWrite))
+        {
+            var commentsUri = PackUriHelper.CreatePartUri(new Uri("/word/comments.xml", UriKind.Relative));
+            var commentsPart = package.CreatePart(commentsUri,
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml",
+                CompressionOption.Normal);
+
+            // Relationship: word/document.xml → word/comments.xml (relative target)
+            var docUri = PackUriHelper.CreatePartUri(new Uri("/word/document.xml", UriKind.Relative));
+            package.GetPart(docUri).CreateRelationship(
+                new Uri("comments.xml", UriKind.Relative),
+                TargetMode.Internal,
+                "http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments");
+
+            XNamespace w = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+            var xdoc = new XDocument(
+                new XDeclaration("1.0", "UTF-8", "yes"),
+                new XElement(w + "comments",
+                    new XElement(w + "comment",
+                        new XAttribute(w + "id", "1"),
+                        new XAttribute(w + "author", authorName),
+                        new XAttribute(w + "initials", "JS"),
+                        new XAttribute(w + "date", "2024-01-01T00:00:00Z"),
+                        new XElement(w + "p",
+                            new XElement(w + "r",
+                                new XElement(w + "t", "comment text"))))));
+            using var stream = commentsPart.GetStream(FileMode.Create, FileAccess.Write);
+            xdoc.Save(stream);
+        }
+
+        return ms.ToArray();
+    }
+
+    internal static byte[] CreateXlsxWithComments(string authorName)
+    {
+        using var ms = new MemoryStream();
+        using (var package = Package.Open(ms, FileMode.Create, FileAccess.ReadWrite))
+        {
+            var commentsUri = PackUriHelper.CreatePartUri(new Uri("/xl/comments1.xml", UriKind.Relative));
+            var part = package.CreatePart(commentsUri,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml");
+            XNamespace xl = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+            var xdoc = new XDocument(
+                new XElement(xl + "comments",
+                    new XElement(xl + "authors",
+                        new XElement(xl + "author", authorName)),
+                    new XElement(xl + "commentList")));
+            using var stream = part.GetStream(FileMode.Create);
+            xdoc.Save(stream);
+        }
+        return ms.ToArray();
+    }
+
+    internal static byte[] CreatePptxWithCommentAuthors(string authorName)
+    {
+        using var ms = new MemoryStream();
+        using (var package = Package.Open(ms, FileMode.Create, FileAccess.ReadWrite))
+        {
+            var authorsUri = PackUriHelper.CreatePartUri(new Uri("/ppt/commentAuthors.xml", UriKind.Relative));
+            var part = package.CreatePart(authorsUri,
+                "application/vnd.openxmlformats-officedocument.presentationml.commentAuthors+xml");
+            XNamespace p = "http://schemas.openxmlformats.org/presentationml/2006/main";
+            var xdoc = new XDocument(
+                new XElement(p + "cmAuthorLst",
+                    new XElement(p + "cmAuthor",
+                        new XAttribute("id", "0"),
+                        new XAttribute("name", authorName),
+                        new XAttribute("initials", "PX"),
+                        new XAttribute("clrIdx", "0"),
+                        new XAttribute("lastIdx", "0"))));
+            using var stream = part.GetStream(FileMode.Create);
+            xdoc.Save(stream);
+        }
+        return ms.ToArray();
+    }
+
+    // ── PDF annotation ─────────────────────────────────────────────────────────────────────
+
+    internal static byte[] CreatePdfWithAnnotation(string authorName)
+    {
+        var doc  = new PdfDocument();
+        var page = doc.AddPage();
+        var annotDict = new PdfDictionary(doc);
+        annotDict.Elements.SetName("/Type",    "/Annot");
+        annotDict.Elements.SetName("/Subtype", "/Text");
+        annotDict.Elements.SetString("/Author",   authorName);
+        annotDict.Elements.SetString("/Contents", "Comment text");
+        var rectArray = new PdfArray(doc);
+        rectArray.Elements.Add(new PdfInteger(50));
+        rectArray.Elements.Add(new PdfInteger(700));
+        rectArray.Elements.Add(new PdfInteger(150));
+        rectArray.Elements.Add(new PdfInteger(750));
+        annotDict.Elements["/Rect"] = rectArray;
+        doc.Internals.AddObject(annotDict);
+        var annotsArray = new PdfArray(doc);
+        annotsArray.Elements.Add(annotDict.Reference!);
+        page.Elements["/Annots"] = annotsArray;
+        using var ms = new MemoryStream();
+        doc.Save(ms);
+        return ms.ToArray();
+    }
+
+    // ── ODF (LibreOffice ODT/ODS/ODP) ────────────────────────────────────────────────────────
+
+    internal static byte[] CreateOdt(string? creator = null, string? title = null,
+        Dictionary<string, string>? userDefined = null)
+    {
+        using var ms = new MemoryStream();
+        using (var zip = new System.IO.Compression.ZipArchive(
+            ms, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
+        {
+            // mimetype must be first and uncompressed per ODF spec
+            var mimetypeEntry = zip.CreateEntry("mimetype",
+                System.IO.Compression.CompressionLevel.NoCompression);
+            using (var s = mimetypeEntry.Open())
+            {
+                var bytes = System.Text.Encoding.ASCII.GetBytes("application/vnd.oasis.opendocument.text");
+                s.Write(bytes, 0, bytes.Length);
+            }
+
+            var metaEntry = zip.CreateEntry("meta.xml");
+            XNamespace office = "urn:oasis:names:tc:opendocument:xmlns:office:1.0";
+            XNamespace dc     = "http://purl.org/dc/elements/1.1/";
+            XNamespace meta   = "urn:oasis:names:tc:opendocument:xmlns:meta:1.0";
+            var officeMeta = new XElement(office + "meta");
+            if (creator     != null) officeMeta.Add(new XElement(dc   + "creator", creator));
+            if (title       != null) officeMeta.Add(new XElement(dc   + "title",   title));
+            if (userDefined != null)
+                foreach (var kvp in userDefined)
+                    officeMeta.Add(new XElement(meta + "user-defined",
+                        new XAttribute(meta + "name", kvp.Key), kvp.Value));
+            var metaDoc = new XDocument(
+                new XDeclaration("1.0", "UTF-8", "yes"),
+                new XElement(office + "document-meta",
+                    new XAttribute(XNamespace.Xmlns + "office", office),
+                    new XAttribute(XNamespace.Xmlns + "dc",     dc),
+                    new XAttribute(XNamespace.Xmlns + "meta",   meta),
+                    officeMeta));
+            using (var s = metaEntry.Open()) metaDoc.Save(s);
+
+            var manifestEntry = zip.CreateEntry("META-INF/manifest.xml");
+            XNamespace mf = "urn:oasis:names:tc:opendocument:xmlns:manifest:1.0";
+            var manifestDoc = new XDocument(
+                new XElement(mf + "manifest",
+                    new XAttribute(XNamespace.Xmlns + "manifest", mf),
+                    new XElement(mf + "file-entry",
+                        new XAttribute(mf + "full-path",  "/"),
+                        new XAttribute(mf + "media-type", "application/vnd.oasis.opendocument.text")),
+                    new XElement(mf + "file-entry",
+                        new XAttribute(mf + "full-path",  "meta.xml"),
+                        new XAttribute(mf + "media-type", "text/xml"))));
+            using (var s = manifestEntry.Open()) manifestDoc.Save(s);
+        }
+        return ms.ToArray();
+    }
+
+    // ── OOXML LastPrinted / Identifier ───────────────────────────────────────────────────
+
+    internal static byte[] CreateDocxWithLastPrinted()
+    {
+        var rawDocx = CreateDocx();
+        var ms = new MemoryStream();
+        ms.Write(rawDocx, 0, rawDocx.Length);
+        ms.Position = 0;
+        using (var package = Package.Open(ms, FileMode.Open, FileAccess.ReadWrite))
+        {
+            package.PackageProperties.LastPrinted = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            package.PackageProperties.Identifier  = "urn:uuid:test-identifier-12345";
+        }
+        return ms.ToArray();
+    }
+
+    // ── Excel xl/persons (Microsoft 365 threaded comments) ────────────────────────
+
+    internal static byte[] CreateXlsxWithPersons(string displayName)
+    {
+        using var ms = new MemoryStream();
+        using (var package = Package.Open(ms, FileMode.Create, FileAccess.ReadWrite))
+        {
+            var personsUri = PackUriHelper.CreatePartUri(
+                new Uri("/xl/persons/person.xml", UriKind.Relative));
+            var part = package.CreatePart(personsUri,
+                "application/vnd.ms-excel.person+xml", CompressionOption.Normal);
+            XNamespace ns = "http://schemas.microsoft.com/office/spreadsheetml/2017/11/persons";
+            var xdoc = new XDocument(
+                new XDeclaration("1.0", "UTF-8", "yes"),
+                new XElement(ns + "Persons",
+                    new XElement(ns + "Person",
+                        new XAttribute("id", "{12345678-1234-1234-1234-123456789012}"),
+                        new XAttribute("displayName", displayName),
+                        new XAttribute("userId",      "user@example.com"),
+                        new XAttribute("providerId",  "AD"))));
+            using var stream = part.GetStream(FileMode.Create, FileAccess.Write);
+            xdoc.Save(stream);
+        }
+        return ms.ToArray();
     }
 }

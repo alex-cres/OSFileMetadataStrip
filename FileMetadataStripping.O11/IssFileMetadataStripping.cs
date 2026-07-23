@@ -6,5 +6,5 @@ namespace OutSystems.NssFileMetadataStripping;
 /// </summary>
 public interface IssFileMetadataStripping
 {
-    void MssStripFileMetadata(byte[] ssRawFile, out RecFileMetadataResult ssStripFileMetadata);
+    void MssStripFileMetadata(byte[] ssRawFile, bool ssStripBodyAuthors, out RecFileMetadataResult ssStripFileMetadata);
 }

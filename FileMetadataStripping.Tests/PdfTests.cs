@@ -16,7 +16,7 @@ public class PdfTests
     {
         var input = TestHelpers.CreatePdf(author: "Attacker Name", title: "Injected Title");
 
-        var result = _sut.StripFileMetadata(input);
+        var result = _sut.StripFileMetadata(input, false);
 
         using var ms = new MemoryStream(result.CleanFile);
         using var doc = PdfReader.Open(ms, PdfDocumentOpenMode.Import);
@@ -29,7 +29,7 @@ public class PdfTests
     {
         var input = TestHelpers.CreatePdf(author: "Attacker Name");
 
-        var result = _sut.StripFileMetadata(input);
+        var result = _sut.StripFileMetadata(input, false);
 
         Assert.Contains("author", result.ExtractedMetadata);
         Assert.Contains("Attacker Name", result.ExtractedMetadata);
@@ -40,7 +40,7 @@ public class PdfTests
     {
         var input = TestHelpers.CreatePdf(author: "Attacker", title: "Injected");
 
-        var result = _sut.StripFileMetadata(input);
+        var result = _sut.StripFileMetadata(input, false);
 
         Assert.True(result.RemovedEntryCount > 0);
     }
@@ -50,7 +50,7 @@ public class PdfTests
     {
         var input = TestHelpers.CreatePdf(); // no explicit author or title
 
-        var result = _sut.StripFileMetadata(input);
+        var result = _sut.StripFileMetadata(input, false);
 
         // PdfSharp auto-sets Creator/Producer; user-injected fields must be absent
         Assert.DoesNotContain("\"author\"", result.ExtractedMetadata);
@@ -62,7 +62,7 @@ public class PdfTests
     {
         var input = TestHelpers.CreatePdf(author: "Test Author");
 
-        var result = _sut.StripFileMetadata(input);
+        var result = _sut.StripFileMetadata(input, false);
 
         // PDF magic bytes: %PDF
         Assert.Equal(0x25, result.CleanFile[0]);
@@ -74,19 +74,19 @@ public class PdfTests
     [Fact]
     public void StripFileMetadata_Pdf_IsPassthroughIsFalse()
     {
-        var result = _sut.StripFileMetadata(TestHelpers.CreatePdf());
+        var result = _sut.StripFileMetadata(TestHelpers.CreatePdf(), false);
 
         Assert.False(result.IsPassthrough);
     }
 
-    // ── XMP catalog stream ──────────────────────────────────────────────────────
+    // â”€â”€ XMP catalog stream â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void StripFileMetadata_PdfWithXmp_CatalogMetadataEntryIsRemoved()
     {
         var input = TestHelpers.CreatePdfWithXmp();
 
-        var result = _sut.StripFileMetadata(input);
+        var result = _sut.StripFileMetadata(input, false);
 
         using var ms  = new MemoryStream(result.CleanFile);
         using var doc = PdfReader.Open(ms, PdfDocumentOpenMode.Import);
@@ -98,7 +98,7 @@ public class PdfTests
     {
         var input = TestHelpers.CreatePdfWithXmp();
 
-        var result = _sut.StripFileMetadata(input);
+        var result = _sut.StripFileMetadata(input, false);
 
         Assert.Contains("\"xmp\"", result.ExtractedMetadata);
     }
@@ -108,7 +108,7 @@ public class PdfTests
     {
         var input = TestHelpers.CreatePdfWithXmp();
 
-        var result = _sut.StripFileMetadata(input);
+        var result = _sut.StripFileMetadata(input, false);
 
         Assert.True(result.RemovedEntryCount >= 1);
     }
@@ -116,7 +116,7 @@ public class PdfTests
     [Fact]
     public void StripFileMetadata_PdfWithXmp_OutputIsValidPdf()
     {
-        var result = _sut.StripFileMetadata(TestHelpers.CreatePdfWithXmp());
+        var result = _sut.StripFileMetadata(TestHelpers.CreatePdfWithXmp(), false);
 
         Assert.Equal(0x25, result.CleanFile[0]); // %PDF magic bytes
         Assert.Equal(0x50, result.CleanFile[1]);
@@ -127,19 +127,19 @@ public class PdfTests
     [Fact]
     public void StripFileMetadata_PdfWithXmp_IsPassthroughIsFalse()
     {
-        var result = _sut.StripFileMetadata(TestHelpers.CreatePdfWithXmp());
+        var result = _sut.StripFileMetadata(TestHelpers.CreatePdfWithXmp(), false);
 
         Assert.False(result.IsPassthrough);
     }
 
-    // ── Encrypted / unreadable PDF ────────────────────────────────────────────────
+    // â”€â”€ Encrypted / unreadable PDF â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void StripFileMetadata_EncryptedPdf_DoesNotThrow()
     {
         var input = TestHelpers.CreateCorruptedPdf();
 
-        var ex = Record.Exception(() => _sut.StripFileMetadata(input));
+        var ex = Record.Exception(() => _sut.StripFileMetadata(input, false));
 
         Assert.Null(ex);
     }
@@ -149,7 +149,7 @@ public class PdfTests
     {
         var input = TestHelpers.CreateCorruptedPdf();
 
-        var result = _sut.StripFileMetadata(input);
+        var result = _sut.StripFileMetadata(input, false);
 
         Assert.Equal(input, result.CleanFile);
     }
@@ -159,10 +159,45 @@ public class PdfTests
     {
         var input = TestHelpers.CreateCorruptedPdf();
 
-        var result = _sut.StripFileMetadata(input);
+        var result = _sut.StripFileMetadata(input, false);
 
         Assert.Contains("processingError", result.ExtractedMetadata);
         Assert.Equal(0, result.RemovedEntryCount);
         Assert.False(result.IsPassthrough);
+    }
+
+    // ── Annotations (────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void StripFileMetadata_PdfWithAnnotation_AuthorIsRemoved()
+    {
+        var input = TestHelpers.CreatePdfWithAnnotation(authorName: "John Doe");
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        // Author name must not appear anywhere in the clean output bytes.
+        var text = System.Text.Encoding.GetEncoding("ISO-8859-1").GetString(result.CleanFile);
+        Assert.DoesNotContain("John Doe", text);
+    }
+
+    [Fact]
+    public void StripFileMetadata_PdfWithAnnotation_ExtractedMetadataContainsAnnotationAuthor()
+    {
+        var input = TestHelpers.CreatePdfWithAnnotation(authorName: "John Doe");
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.Contains("annotationAuthors", result.ExtractedMetadata);
+        Assert.Contains("John Doe", result.ExtractedMetadata);
+    }
+
+    [Fact]
+    public void StripFileMetadata_PdfWithAnnotation_RemovedEntryCountIncludesAnnotation()
+    {
+        var input = TestHelpers.CreatePdfWithAnnotation(authorName: "John Doe");
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.True(result.RemovedEntryCount > 0);
     }
 }

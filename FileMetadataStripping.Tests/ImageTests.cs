@@ -4,7 +4,7 @@ using Xunit;
 namespace FileMetadataStripping.Tests;
 
 /// <summary>
-/// Tests for image file stripping (JPEG, PNG, GIF, BMP, TIFF, WebP, TGA, …).
+/// Tests for image file stripping (JPEG, PNG, GIF, BMP, TIFF, WebP, TGA, â€¦).
 /// Covers: clean round-trip, EXIF removal, IPTC removal, XMP removal,
 /// combined profiles, format preservation, and security invariants.
 /// </summary>
@@ -12,12 +12,12 @@ public class ImageTests
 {
     private readonly IFileMetadataStripping _sut = new FileMetadataStripping();
 
-    // ── Clean image ────────────────────────────────────────────────────────────
+    // â”€â”€ Clean image â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void StripFileMetadata_WithCleanImage_CleanFileIsNonEmpty()
     {
-        var result = _sut.StripFileMetadata(TestHelpers.CreateJpeg());
+        var result = _sut.StripFileMetadata(TestHelpers.CreateJpeg(), false);
 
         Assert.NotNull(result.CleanFile);
         Assert.NotEmpty(result.CleanFile);
@@ -26,7 +26,7 @@ public class ImageTests
     [Fact]
     public void StripFileMetadata_WithCleanImage_CleanFileIsDecodable()
     {
-        var result = _sut.StripFileMetadata(TestHelpers.CreateJpeg());
+        var result = _sut.StripFileMetadata(TestHelpers.CreateJpeg(), false);
 
         var ex = Record.Exception(() => new MagickImage(result.CleanFile).Dispose());
         Assert.Null(ex);
@@ -35,7 +35,7 @@ public class ImageTests
     [Fact]
     public void StripFileMetadata_WithCleanImage_DimensionsArePreserved()
     {
-        var result = _sut.StripFileMetadata(TestHelpers.CreateJpeg());
+        var result = _sut.StripFileMetadata(TestHelpers.CreateJpeg(), false);
 
         var info = new MagickImageInfo(result.CleanFile);
         Assert.Equal(10u, info.Width);
@@ -45,7 +45,7 @@ public class ImageTests
     [Fact]
     public void StripFileMetadata_WithCleanImage_RemovedEntryCountIsZero()
     {
-        var result = _sut.StripFileMetadata(TestHelpers.CreateJpeg());
+        var result = _sut.StripFileMetadata(TestHelpers.CreateJpeg(), false);
 
         Assert.Equal(0, result.RemovedEntryCount);
         Assert.Equal("[]", result.ExtractedMetadata);
@@ -54,12 +54,12 @@ public class ImageTests
     [Fact]
     public void StripFileMetadata_WithCleanImage_IsPassthroughIsFalse()
     {
-        var result = _sut.StripFileMetadata(TestHelpers.CreateJpeg());
+        var result = _sut.StripFileMetadata(TestHelpers.CreateJpeg(), false);
 
         Assert.False(result.IsPassthrough);
     }
 
-    // ── EXIF ───────────────────────────────────────────────────────────────────
+    // â”€â”€ EXIF â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void StripFileMetadata_WithExifData_CleanFileHasNullExifProfile()
@@ -71,7 +71,7 @@ public class ImageTests
             img.SetProfile(exif);
         });
 
-        var result = _sut.StripFileMetadata(input);
+        var result = _sut.StripFileMetadata(input, false);
 
         using var output = new MagickImage(result.CleanFile);
         Assert.Null(output.GetExifProfile());
@@ -88,7 +88,7 @@ public class ImageTests
             img.SetProfile(exif);
         });
 
-        var result = _sut.StripFileMetadata(input);
+        var result = _sut.StripFileMetadata(input, false);
 
         Assert.True(result.RemovedEntryCount > 0);
     }
@@ -103,7 +103,7 @@ public class ImageTests
             img.SetProfile(exif);
         });
 
-        var result = _sut.StripFileMetadata(input);
+        var result = _sut.StripFileMetadata(input, false);
 
         Assert.Contains("exif", result.ExtractedMetadata);
         Assert.Contains("ImageDescription", result.ExtractedMetadata);
@@ -124,7 +124,7 @@ public class ImageTests
         Assert.NotNull(check.GetExifProfile());
     }
 
-    // ── IPTC ───────────────────────────────────────────────────────────────────
+    // â”€â”€ IPTC â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void StripFileMetadata_WithIptcData_CleanFileHasNullIptcProfile()
@@ -136,7 +136,7 @@ public class ImageTests
             img.SetProfile(iptc);
         });
 
-        var result = _sut.StripFileMetadata(input);
+        var result = _sut.StripFileMetadata(input, false);
 
         using var output = new MagickImage(result.CleanFile);
         Assert.Null(output.GetIptcProfile());
@@ -152,12 +152,12 @@ public class ImageTests
             img.SetProfile(iptc);
         });
 
-        var result = _sut.StripFileMetadata(input);
+        var result = _sut.StripFileMetadata(input, false);
 
         Assert.Contains("iptc", result.ExtractedMetadata);
     }
 
-    // ── XMP ────────────────────────────────────────────────────────────────────
+    // â”€â”€ XMP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void StripFileMetadata_WithXmpData_CleanFileHasNullXmpProfile()
@@ -165,20 +165,20 @@ public class ImageTests
         var xmpBytes = "<x:xmpmeta xmlns:x='adobe:ns:meta/'><rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'></rdf:RDF></x:xmpmeta>"u8.ToArray();
         var input = TestHelpers.CreateJpeg(img => img.SetProfile(new XmpProfile(xmpBytes)));
 
-        var result = _sut.StripFileMetadata(input);
+        var result = _sut.StripFileMetadata(input, false);
 
         using var output = new MagickImage(result.CleanFile);
         Assert.Null(output.GetXmpProfile());
     }
 
-    // ── All profiles combined ──────────────────────────────────────────────────
+    // â”€â”€ All profiles combined â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void StripFileMetadata_WithAllMetadataTypes_CleanFileHasNoProfiles()
     {
         var input = CreateJpegWithAllMetadata();
 
-        var result = _sut.StripFileMetadata(input);
+        var result = _sut.StripFileMetadata(input, false);
 
         using var output = new MagickImage(result.CleanFile);
         Assert.Null(output.GetExifProfile());
@@ -189,7 +189,7 @@ public class ImageTests
     [Fact]
     public void StripFileMetadata_WithAllMetadataTypes_RemovedEntryCountIsGreaterThanZero()
     {
-        var result = _sut.StripFileMetadata(CreateJpegWithAllMetadata());
+        var result = _sut.StripFileMetadata(CreateJpegWithAllMetadata(), false);
 
         Assert.True(result.RemovedEntryCount > 0);
     }
@@ -197,7 +197,7 @@ public class ImageTests
     [Fact]
     public void StripFileMetadata_WithAllMetadataTypes_ExtractedMetadataContainsAllSections()
     {
-        var result = _sut.StripFileMetadata(CreateJpegWithAllMetadata());
+        var result = _sut.StripFileMetadata(CreateJpegWithAllMetadata(), false);
 
         Assert.Contains("exif", result.ExtractedMetadata);
         Assert.Contains("iptc", result.ExtractedMetadata);
@@ -207,18 +207,18 @@ public class ImageTests
     [Fact]
     public void StripFileMetadata_WithAllMetadataTypes_CleanFileIsStillDecodable()
     {
-        var result = _sut.StripFileMetadata(CreateJpegWithAllMetadata());
+        var result = _sut.StripFileMetadata(CreateJpegWithAllMetadata(), false);
 
         var ex = Record.Exception(() => new MagickImage(result.CleanFile).Dispose());
         Assert.Null(ex);
     }
 
-    // ── Format preservation ────────────────────────────────────────────────────
+    // â”€â”€ Format preservation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void StripFileMetadata_JpegInput_OutputIsJpeg()
     {
-        var result = _sut.StripFileMetadata(TestHelpers.CreateJpeg());
+        var result = _sut.StripFileMetadata(TestHelpers.CreateJpeg(), false);
 
         var info = new MagickImageInfo(result.CleanFile);
         Assert.Equal(MagickFormat.Jpeg, info.Format);
@@ -227,7 +227,7 @@ public class ImageTests
     [Fact]
     public void StripFileMetadata_PngInput_OutputIsPng()
     {
-        var result = _sut.StripFileMetadata(TestHelpers.CreatePng());
+        var result = _sut.StripFileMetadata(TestHelpers.CreatePng(), false);
 
         var info = new MagickImageInfo(result.CleanFile);
         Assert.Equal(MagickFormat.Png, info.Format);
@@ -243,7 +243,7 @@ public class ImageTests
             img.SetProfile(exif);
         });
 
-        var result = _sut.StripFileMetadata(input);
+        var result = _sut.StripFileMetadata(input, false);
 
         using var decoded = new MagickImage(result.CleanFile);
         Assert.Null(decoded.GetExifProfile());
@@ -252,7 +252,7 @@ public class ImageTests
     [Fact]
     public void StripFileMetadata_GifInput_OutputIsGif()
     {
-        var result = _sut.StripFileMetadata(TestHelpers.CreateGif());
+        var result = _sut.StripFileMetadata(TestHelpers.CreateGif(), false);
 
         var info = new MagickImageInfo(result.CleanFile);
         Assert.Equal(MagickFormat.Gif, info.Format);
@@ -261,7 +261,7 @@ public class ImageTests
     [Fact]
     public void StripFileMetadata_GifInput_CleanFileIsDecodable()
     {
-        var result = _sut.StripFileMetadata(TestHelpers.CreateGif());
+        var result = _sut.StripFileMetadata(TestHelpers.CreateGif(), false);
 
         var ex = Record.Exception(() => new MagickImage(result.CleanFile).Dispose());
         Assert.Null(ex);
@@ -270,7 +270,7 @@ public class ImageTests
     [Fact]
     public void StripFileMetadata_BmpInput_OutputIsBmp()
     {
-        var result = _sut.StripFileMetadata(TestHelpers.CreateBmp());
+        var result = _sut.StripFileMetadata(TestHelpers.CreateBmp(), false);
 
         var info = new MagickImageInfo(result.CleanFile);
         Assert.Equal(MagickFormat.Bmp, info.Format);
@@ -279,7 +279,7 @@ public class ImageTests
     [Fact]
     public void StripFileMetadata_BmpInput_CleanFileIsDecodable()
     {
-        var result = _sut.StripFileMetadata(TestHelpers.CreateBmp());
+        var result = _sut.StripFileMetadata(TestHelpers.CreateBmp(), false);
 
         var ex = Record.Exception(() => new MagickImage(result.CleanFile).Dispose());
         Assert.Null(ex);
@@ -288,7 +288,7 @@ public class ImageTests
     [Fact]
     public void StripFileMetadata_TiffInput_OutputIsTiff()
     {
-        var result = _sut.StripFileMetadata(TestHelpers.CreateTiff());
+        var result = _sut.StripFileMetadata(TestHelpers.CreateTiff(), false);
 
         var info = new MagickImageInfo(result.CleanFile);
         Assert.Equal(MagickFormat.Tiff, info.Format);
@@ -304,7 +304,7 @@ public class ImageTests
             img.SetProfile(exif);
         });
 
-        var result = _sut.StripFileMetadata(input);
+        var result = _sut.StripFileMetadata(input, false);
 
         using var decoded = new MagickImage(result.CleanFile);
         Assert.Null(decoded.GetExifProfile());
@@ -313,7 +313,7 @@ public class ImageTests
     [Fact]
     public void StripFileMetadata_WebPInput_OutputIsWebP()
     {
-        var result = _sut.StripFileMetadata(TestHelpers.CreateWebP());
+        var result = _sut.StripFileMetadata(TestHelpers.CreateWebP(), false);
 
         var info = new MagickImageInfo(result.CleanFile);
         Assert.Equal(MagickFormat.WebP, info.Format);
@@ -329,13 +329,13 @@ public class ImageTests
             img.SetProfile(exif);
         });
 
-        var result = _sut.StripFileMetadata(input);
+        var result = _sut.StripFileMetadata(input, false);
 
         using var decoded = new MagickImage(result.CleanFile);
         Assert.Null(decoded.GetExifProfile());
     }
 
-    // ── Helpers ────────────────────────────────────────────────────────────────
+    // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private static byte[] CreateJpegWithAllMetadata()
     {
@@ -354,12 +354,12 @@ public class ImageTests
         });
     }
 
-    // ── Animated GIF ───────────────────────────────────────────────────────────
+    // â”€â”€ Animated GIF â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void StripFileMetadata_WithAnimatedGif_AllFramesArePreserved()
     {
-        var result = _sut.StripFileMetadata(TestHelpers.CreateAnimatedGif());
+        var result = _sut.StripFileMetadata(TestHelpers.CreateAnimatedGif(), false);
 
         using var images = new MagickImageCollection(result.CleanFile);
         Assert.Equal(3, images.Count);
@@ -368,7 +368,7 @@ public class ImageTests
     [Fact]
     public void StripFileMetadata_WithAnimatedGif_CleanFileIsDecodable()
     {
-        var result = _sut.StripFileMetadata(TestHelpers.CreateAnimatedGif());
+        var result = _sut.StripFileMetadata(TestHelpers.CreateAnimatedGif(), false);
 
         var ex = Record.Exception(() => new MagickImageCollection(result.CleanFile).Dispose());
         Assert.Null(ex);
@@ -377,7 +377,7 @@ public class ImageTests
     [Fact]
     public void StripFileMetadata_WithAnimatedGif_DimensionsArePreserved()
     {
-        var result = _sut.StripFileMetadata(TestHelpers.CreateAnimatedGif());
+        var result = _sut.StripFileMetadata(TestHelpers.CreateAnimatedGif(), false);
 
         using var images = new MagickImageCollection(result.CleanFile);
         Assert.Equal(10u, images[0].Width);
@@ -387,7 +387,7 @@ public class ImageTests
     [Fact]
     public void StripFileMetadata_WithAnimatedGif_FormatRemainsGif()
     {
-        var result = _sut.StripFileMetadata(TestHelpers.CreateAnimatedGif());
+        var result = _sut.StripFileMetadata(TestHelpers.CreateAnimatedGif(), false);
 
         using var images = new MagickImageCollection(result.CleanFile);
         Assert.Equal(MagickFormat.Gif, images[0].Format);
@@ -396,17 +396,17 @@ public class ImageTests
     [Fact]
     public void StripFileMetadata_WithAnimatedGif_IsPassthroughIsFalse()
     {
-        var result = _sut.StripFileMetadata(TestHelpers.CreateAnimatedGif());
+        var result = _sut.StripFileMetadata(TestHelpers.CreateAnimatedGif(), false);
 
         Assert.False(result.IsPassthrough);
     }
 
-    // ── Multi-frame TIFF ───────────────────────────────────────────────────────
+    // â”€â”€ Multi-frame TIFF â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void StripFileMetadata_WithMultiFrameTiff_AllFramesArePreserved()
     {
-        var result = _sut.StripFileMetadata(TestHelpers.CreateMultiFrameTiff());
+        var result = _sut.StripFileMetadata(TestHelpers.CreateMultiFrameTiff(), false);
 
         using var images = new MagickImageCollection(result.CleanFile);
         Assert.Equal(3, images.Count);
@@ -415,7 +415,7 @@ public class ImageTests
     [Fact]
     public void StripFileMetadata_WithMultiFrameTiff_CleanFileIsDecodable()
     {
-        var result = _sut.StripFileMetadata(TestHelpers.CreateMultiFrameTiff());
+        var result = _sut.StripFileMetadata(TestHelpers.CreateMultiFrameTiff(), false);
 
         var ex = Record.Exception(() => new MagickImageCollection(result.CleanFile).Dispose());
         Assert.Null(ex);
@@ -424,7 +424,7 @@ public class ImageTests
     [Fact]
     public void StripFileMetadata_WithMultiFrameTiff_DimensionsArePreserved()
     {
-        var result = _sut.StripFileMetadata(TestHelpers.CreateMultiFrameTiff());
+        var result = _sut.StripFileMetadata(TestHelpers.CreateMultiFrameTiff(), false);
 
         using var images = new MagickImageCollection(result.CleanFile);
         Assert.Equal(10u, images[0].Width);
@@ -434,7 +434,7 @@ public class ImageTests
     [Fact]
     public void StripFileMetadata_WithMultiFrameTiff_FormatRemainsTiff()
     {
-        var result = _sut.StripFileMetadata(TestHelpers.CreateMultiFrameTiff());
+        var result = _sut.StripFileMetadata(TestHelpers.CreateMultiFrameTiff(), false);
 
         using var images = new MagickImageCollection(result.CleanFile);
         Assert.Equal(MagickFormat.Tiff, images[0].Format);
@@ -443,7 +443,7 @@ public class ImageTests
     [Fact]
     public void StripFileMetadata_WithMultiFrameTiff_IsPassthroughIsFalse()
     {
-        var result = _sut.StripFileMetadata(TestHelpers.CreateMultiFrameTiff());
+        var result = _sut.StripFileMetadata(TestHelpers.CreateMultiFrameTiff(), false);
 
         Assert.False(result.IsPassthrough);
     }
