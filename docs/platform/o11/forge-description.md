@@ -55,7 +55,7 @@ Calling `StripFileMetadata` at the earliest point in any flow that accepts file 
 
 | `RawFile` | Input | BinaryData | The uploaded file (any supported format) |
 
-| `StripBodyAuthors` | Input | Boolean | When `True`, also blanks author names from OOXML tracked changes and comments (DOCX `w:author`/`w:initials`, XLSX `<author>` elements, PPTX `name`/`initials`). Default: `False`. |
+| `StripBodyAuthors` | Input | Boolean | When `True`, also blanks author names from OOXML tracked changes and comments (DOCX `w:author`/`w:initials`, XLSX `<author>` elements, PPTX `name`/`initials`), and Excel 365 `xl/persons` entries (`displayName`/`userId`). Default: `False`. |
 
 | *(return)* | Output | `FileMetadataResult` | Structure containing the clean file and extracted metadata |
 

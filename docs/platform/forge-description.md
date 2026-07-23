@@ -55,7 +55,7 @@ Calling `StripFileMetadata` at the earliest point in any flow that accepts file 
 
 | `RawFile` | Input | BinaryData | The uploaded file (any supported format) |
 
-| `StripBodyAuthors` | Input | Boolean | When `True`, also blanks author names from OOXML tracked changes and comments (DOCX `w:author`/`w:initials`, XLSX `<author>` elements, PPTX `name`/`initials`). Default: `False`. |
+| `StripBodyAuthors` | Input | Boolean | When `True`, also blanks author names from OOXML tracked changes and comments (DOCX `w:author`/`w:initials`, XLSX `<author>` elements, PPTX `name`/`initials`), and Excel 365 `xl/persons` entries (`displayName`/`userId`). Default: `False`. |
 
 | *(return)* | Output | `FileMetadataResult` | Structure containing the clean file and extracted metadata |
 
@@ -79,7 +79,7 @@ Calling `StripFileMetadata` at the earliest point in any flow that accepts file 
 
 1. Upload the component ZIP to **ODC Portal → External Logic** and publish it as an External Library.
 
-2. In your ODC application, add **FileMetadaStripping** as a dependency.
+2. In your ODC application, add **FileMetadataStripping** as a dependency.
 
 3. In any Server Action that receives an uploaded file, call `StripFileMetadata` **before** forwarding the file to an AI API:
 
