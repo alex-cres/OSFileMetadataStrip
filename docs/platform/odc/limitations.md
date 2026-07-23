@@ -14,3 +14,5 @@ Memory usage - no file-size limit is enforced; the entire file is loaded into me
 Content only - metadata containers are removed, but steganographic payloads hidden inside pixel values are not detected or disrupted. Pair with OSStegoGuard and OSQRGuard.
 
 Unreadable audio/video - files that cannot be parsed by the media engine are returned unchanged with a processingError note in ExtractedMetadata; no exception is raised.
+
+Unreadable or encrypted PDF and OOXML - files that cannot be opened (e.g. password-protected or corrupted) are returned unchanged with a processingError note in ExtractedMetadata and RemovedEntryCount of 0; no exception is raised.

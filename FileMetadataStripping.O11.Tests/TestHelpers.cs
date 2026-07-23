@@ -174,6 +174,38 @@ internal static class TestHelpers
         return ms.ToArray();
     }
 
+    /// <summary>
+    /// Creates a byte array with PDF magic bytes followed by invalid content.
+    /// PdfSharp will throw PdfReaderException when trying to open this file,
+    /// simulating a corrupted or password-protected PDF.
+    /// </summary>
+    internal static byte[] CreateCorruptedPdf()
+    {
+        var bytes = new byte[64];
+        bytes[0] = 0x25; // %
+        bytes[1] = 0x50; // P
+        bytes[2] = 0x44; // D
+        bytes[3] = 0x46; // F
+        // Remaining bytes are 0x00 — no valid cross-reference table or trailer.
+        return bytes;
+    }
+
+    /// <summary>
+    /// Creates a byte array with ZIP/PK magic bytes followed by invalid content.
+    /// System.IO.Packaging.Package.Open will throw when trying to parse this file,
+    /// simulating a corrupted or password-protected OOXML file.
+    /// </summary>
+    internal static byte[] CreateCorruptedDocx()
+    {
+        var bytes = new byte[64];
+        bytes[0] = 0x50; // P
+        bytes[1] = 0x4B; // K
+        bytes[2] = 0x03;
+        bytes[3] = 0x04;
+        // Remaining bytes are 0x00 — not a valid ZIP local file header.
+        return bytes;
+    }
+
     internal static byte[] CreateWav(string? title = null, string? artist = null)
     {
         var wavBytes = BuildMinimalWav();

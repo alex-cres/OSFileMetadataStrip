@@ -150,43 +150,69 @@ public class FileMetadataStripping : IFileMetadataStripping
 
     private static FileMetadataResult StripPdfMetadata(byte[] rawFile)
     {
-        using var input  = new MemoryStream(rawFile);
-        using var source = PdfReader.Open(input, PdfDocumentOpenMode.Import);
-
-        // Extract metadata from the source document before creating the clean copy.
-        var (extractedMetadata, removedEntryCount) = ExtractPdfMetadata(source);
-
-        // Create a fresh document and copy all pages.
-        // A new document has neither /Info metadata nor a catalog /Metadata entry.
-        using var dest   = new PdfDocument();
-        using var output = new MemoryStream();
-
-        for (int i = 0; i < source.PageCount; i++)
-            dest.AddPage(source.Pages[i]);
-
-        // Explicitly blank /Info fields so read-back returns string.Empty rather than null.
-        dest.Info.Title    = string.Empty;
-        dest.Info.Author   = string.Empty;
-        dest.Info.Subject  = string.Empty;
-        dest.Info.Keywords = string.Empty;
-        dest.Info.Creator  = string.Empty;
-
-        dest.Save(output);
-
-        // PdfSharp 6.x's PdfCatalog.PrepareForSave() re-adds /Metadata to the
-        // catalog during Save, even when removed from Elements beforehand.
-        // Post-process the output bytes: replace every /Metadata indirect-reference
-        // token with an equal-length whitespace run.  Because no bytes are added or
-        // removed, all XRef byte offsets stay valid and the file remains well-formed.
-        var cleanBytes = EraseCatalogXmpKey(output.ToArray());
-
-        return new FileMetadataResult
+        using var input = new MemoryStream(rawFile);
+        PdfDocument source;
+        try
         {
-            CleanFile         = cleanBytes,
-            ExtractedMetadata = extractedMetadata,
-            RemovedEntryCount = removedEntryCount,
-            IsPassthrough     = false
-        };
+            source = PdfReader.Open(input, PdfDocumentOpenMode.Import);
+        }
+        catch (Exception ex) when (
+            ex is PdfReaderException        ||
+            ex is InvalidOperationException ||
+            ex is NotSupportedException)
+        {
+            var note = new JsonObject
+            {
+                ["processingError"] = JsonValue.Create(
+                    "Metadata stripping was skipped — the PDF could not be opened (it may be encrypted or password-protected). " +
+                    $"Original file returned unchanged. Reason: {ex.GetType().Name}: {ex.Message}")
+            };
+            return new FileMetadataResult
+            {
+                CleanFile         = rawFile,
+                ExtractedMetadata = note.ToJsonString(),
+                RemovedEntryCount = 0,
+                IsPassthrough     = false
+            };
+        }
+
+        using (source)
+        {
+            // Extract metadata from the source document before creating the clean copy.
+            var (extractedMetadata, removedEntryCount) = ExtractPdfMetadata(source);
+
+            // Create a fresh document and copy all pages.
+            // A new document has neither /Info metadata nor a catalog /Metadata entry.
+            using var dest   = new PdfDocument();
+            using var output = new MemoryStream();
+
+            for (int i = 0; i < source.PageCount; i++)
+                dest.AddPage(source.Pages[i]);
+
+            // Explicitly blank /Info fields so read-back returns string.Empty rather than null.
+            dest.Info.Title    = string.Empty;
+            dest.Info.Author   = string.Empty;
+            dest.Info.Subject  = string.Empty;
+            dest.Info.Keywords = string.Empty;
+            dest.Info.Creator  = string.Empty;
+
+            dest.Save(output);
+
+            // PdfSharp 6.x's PdfCatalog.PrepareForSave() re-adds /Metadata to the
+            // catalog during Save, even when removed from Elements beforehand.
+            // Post-process the output bytes: replace every /Metadata indirect-reference
+            // token with an equal-length whitespace run.  Because no bytes are added or
+            // removed, all XRef byte offsets stay valid and the file remains well-formed.
+            var cleanBytes = EraseCatalogXmpKey(output.ToArray());
+
+            return new FileMetadataResult
+            {
+                CleanFile         = cleanBytes,
+                ExtractedMetadata = extractedMetadata,
+                RemovedEntryCount = removedEntryCount,
+                IsPassthrough     = false
+            };
+        }
     }
 
     /// <summary>
@@ -249,36 +275,58 @@ public class FileMetadataStripping : IFileMetadataStripping
 
     private static FileMetadataResult StripOpenXmlMetadata(byte[] rawFile)
     {
-        var ms = new MemoryStream();
-        ms.Write(rawFile, 0, rawFile.Length);
-        ms.Position = 0;
-
-        using var package = Package.Open(ms, FileMode.Open, FileAccess.ReadWrite);
-
-        var (extractedMetadata, removedEntryCount) = ExtractOpenXmlMetadata(package.PackageProperties);
-
-        var props = package.PackageProperties;
-        props.Creator        = null;
-        props.LastModifiedBy = null;
-        props.Created        = null;
-        props.Modified       = null;
-        props.Title          = null;
-        props.Subject        = null;
-        props.Description    = null;
-        props.Keywords       = null;
-        props.Category       = null;
-        props.ContentStatus  = null;
-        props.Revision       = null;
-
-        package.Close();
-
-        return new FileMetadataResult
+        try
         {
-            CleanFile         = ms.ToArray(),
-            ExtractedMetadata = extractedMetadata,
-            RemovedEntryCount = removedEntryCount,
-            IsPassthrough     = false
-        };
+            var ms = new MemoryStream();
+            ms.Write(rawFile, 0, rawFile.Length);
+            ms.Position = 0;
+
+            using var package = Package.Open(ms, FileMode.Open, FileAccess.ReadWrite);
+
+            var (extractedMetadata, removedEntryCount) = ExtractOpenXmlMetadata(package.PackageProperties);
+
+            var props = package.PackageProperties;
+            props.Creator        = null;
+            props.LastModifiedBy = null;
+            props.Created        = null;
+            props.Modified       = null;
+            props.Title          = null;
+            props.Subject        = null;
+            props.Description    = null;
+            props.Keywords       = null;
+            props.Category       = null;
+            props.ContentStatus  = null;
+            props.Revision       = null;
+
+            package.Close();
+
+            return new FileMetadataResult
+            {
+                CleanFile         = ms.ToArray(),
+                ExtractedMetadata = extractedMetadata,
+                RemovedEntryCount = removedEntryCount,
+                IsPassthrough     = false
+            };
+        }
+        catch (Exception ex) when (
+            ex is FileFormatException  ||
+            ex is InvalidDataException ||
+            ex is NotSupportedException)
+        {
+            var note = new JsonObject
+            {
+                ["processingError"] = JsonValue.Create(
+                    "Metadata stripping was skipped — the OOXML file could not be opened (it may be encrypted or password-protected). " +
+                    $"Original file returned unchanged. Reason: {ex.GetType().Name}: {ex.Message}")
+            };
+            return new FileMetadataResult
+            {
+                CleanFile         = rawFile,
+                ExtractedMetadata = note.ToJsonString(),
+                RemovedEntryCount = 0,
+                IsPassthrough     = false
+            };
+        }
     }
 
     private static (string json, int count) ExtractOpenXmlMetadata(PackageProperties props)

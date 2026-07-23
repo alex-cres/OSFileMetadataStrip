@@ -64,4 +64,38 @@ public class OpenXmlTests
 
         Assert.False(result.IsPassthrough);
     }
+
+    // ── Encrypted / unreadable OOXML ──────────────────────────────────────────────
+
+    [Fact]
+    public void StripFileMetadata_EncryptedDocx_DoesNotThrow()
+    {
+        var input = TestHelpers.CreateCorruptedDocx();
+
+        var ex = Record.Exception(() => _sut.StripFileMetadata(input));
+
+        Assert.Null(ex);
+    }
+
+    [Fact]
+    public void StripFileMetadata_EncryptedDocx_ReturnsOriginalFileUnchanged()
+    {
+        var input = TestHelpers.CreateCorruptedDocx();
+
+        var result = _sut.StripFileMetadata(input);
+
+        Assert.Equal(input, result.CleanFile);
+    }
+
+    [Fact]
+    public void StripFileMetadata_EncryptedDocx_ExtractedMetadataContainsProcessingError()
+    {
+        var input = TestHelpers.CreateCorruptedDocx();
+
+        var result = _sut.StripFileMetadata(input);
+
+        Assert.Contains("processingError", result.ExtractedMetadata);
+        Assert.Equal(0, result.RemovedEntryCount);
+        Assert.False(result.IsPassthrough);
+    }
 }

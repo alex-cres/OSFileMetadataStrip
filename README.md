@@ -61,6 +61,8 @@ Detects the file type from its binary signature, then routes to a format-specifi
 | Office Open XML (DOCX, XLSX, PPTX) | [DocumentFormat.OpenXml](https://github.com/dotnet/Open-XML-SDK) (MIT) | Core properties (Creator, LastModifiedBy, Created, Modified, Title, Subject, Description, Keywords, Category, ContentStatus, Revision) |
 | Plain text / unrecognised | — | Passthrough — `IsPassthrough = true`, file returned unchanged |
 
+> **Note:** If a PDF or OOXML file is encrypted, password-protected, or corrupted and cannot be opened, the original file is returned unchanged (`IsPassthrough = false`, `RemovedEntryCount = 0`) and `ExtractedMetadata` contains a `processingError` key. No exception is raised.
+
 ```
 Upload → StripFileMetadata → Clean BinaryData + ExtractedMetadata → AI API / Storage
 ```

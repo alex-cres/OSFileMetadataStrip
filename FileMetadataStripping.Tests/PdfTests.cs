@@ -131,4 +131,38 @@ public class PdfTests
 
         Assert.False(result.IsPassthrough);
     }
+
+    // ── Encrypted / unreadable PDF ────────────────────────────────────────────────
+
+    [Fact]
+    public void StripFileMetadata_EncryptedPdf_DoesNotThrow()
+    {
+        var input = TestHelpers.CreateCorruptedPdf();
+
+        var ex = Record.Exception(() => _sut.StripFileMetadata(input));
+
+        Assert.Null(ex);
+    }
+
+    [Fact]
+    public void StripFileMetadata_EncryptedPdf_ReturnsOriginalFileUnchanged()
+    {
+        var input = TestHelpers.CreateCorruptedPdf();
+
+        var result = _sut.StripFileMetadata(input);
+
+        Assert.Equal(input, result.CleanFile);
+    }
+
+    [Fact]
+    public void StripFileMetadata_EncryptedPdf_ExtractedMetadataContainsProcessingError()
+    {
+        var input = TestHelpers.CreateCorruptedPdf();
+
+        var result = _sut.StripFileMetadata(input);
+
+        Assert.Contains("processingError", result.ExtractedMetadata);
+        Assert.Equal(0, result.RemovedEntryCount);
+        Assert.False(result.IsPassthrough);
+    }
 }

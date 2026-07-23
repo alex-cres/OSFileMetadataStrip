@@ -96,6 +96,11 @@ engine, the original file is returned unchanged and ExtractedMetadata
 will contain a processingError key explaining why stripping was
 skipped.
 
+If a PDF or Office Open XML file is encrypted, password-protected,
+or corrupted and cannot be opened, the original file is returned
+unchanged and ExtractedMetadata will contain a processingError key.
+RemovedEntryCount will be 0 and IsPassthrough will be false.
+
 For animated GIFs and multi-frame TIFFs, metadata extraction reads
 the first frame only (file-level metadata is stored there). All frames
 are stripped and written to the output.

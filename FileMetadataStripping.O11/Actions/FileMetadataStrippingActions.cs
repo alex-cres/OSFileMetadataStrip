@@ -145,32 +145,58 @@ public class CssFileMetadataStripping : IssFileMetadataStripping
 
     private static RecFileMetadataResult StripPdfMetadata(byte[] rawFile)
     {
-        using var input    = new MemoryStream(rawFile);
-        using var document = PdfReader.Open(input, PdfDocumentOpenMode.Modify);
-
-        var (extractedMetadata, removedEntryCount) = ExtractPdfMetadata(document);
-
-        document.Info.Title    = string.Empty;
-        document.Info.Author   = string.Empty;
-        document.Info.Subject  = string.Empty;
-        document.Info.Keywords = string.Empty;
-        document.Info.Creator  = string.Empty;
-
-        // Strip catalog /Metadata XMP stream
-        var catalog = document.Internals.Catalog;
-        if (catalog.Elements.ContainsKey("/Metadata"))
-            catalog.Elements.Remove("/Metadata");
-
-        using var output = new MemoryStream();
-        document.Save(output);
-
-        return new RecFileMetadataResult
+        using var input = new MemoryStream(rawFile);
+        PdfDocument document;
+        try
         {
-            ssCleanFile         = output.ToArray(),
-            ssExtractedMetadata = extractedMetadata,
-            ssRemovedEntryCount = removedEntryCount,
-            ssIsPassthrough     = false
-        };
+            document = PdfReader.Open(input, PdfDocumentOpenMode.Modify);
+        }
+        catch (Exception ex) when (
+            ex is PdfReaderException        ||
+            ex is InvalidOperationException ||
+            ex is NotSupportedException)
+        {
+            var note = new JsonObject
+            {
+                ["processingError"] = JsonValue.Create(
+                    "Metadata stripping was skipped — the PDF could not be opened (it may be encrypted or password-protected). " +
+                    $"Original file returned unchanged. Reason: {ex.GetType().Name}: {ex.Message}")
+            };
+            return new RecFileMetadataResult
+            {
+                ssCleanFile         = rawFile,
+                ssExtractedMetadata = note.ToJsonString(),
+                ssRemovedEntryCount = 0,
+                ssIsPassthrough     = false
+            };
+        }
+
+        using (document)
+        {
+            var (extractedMetadata, removedEntryCount) = ExtractPdfMetadata(document);
+
+            document.Info.Title    = string.Empty;
+            document.Info.Author   = string.Empty;
+            document.Info.Subject  = string.Empty;
+            document.Info.Keywords = string.Empty;
+            document.Info.Creator  = string.Empty;
+
+            // Strip catalog /Metadata XMP stream
+            var catalog = document.Internals.Catalog;
+            if (catalog.Elements.ContainsKey("/Metadata"))
+                catalog.Elements.Remove("/Metadata");
+
+            using var output = new MemoryStream();
+            document.Save(output);
+
+            return new RecFileMetadataResult
+            {
+                ssCleanFile         = output.ToArray(),
+                ssExtractedMetadata = extractedMetadata,
+                ssRemovedEntryCount = removedEntryCount,
+                ssIsPassthrough     = false
+            };
+        }
     }
 
     private static (string json, int count) ExtractPdfMetadata(PdfDocument document)
@@ -204,36 +230,58 @@ public class CssFileMetadataStripping : IssFileMetadataStripping
 
     private static RecFileMetadataResult StripOpenXmlMetadata(byte[] rawFile)
     {
-        var ms = new MemoryStream();
-        ms.Write(rawFile, 0, rawFile.Length);
-        ms.Position = 0;
-
-        using var package = Package.Open(ms, FileMode.Open, FileAccess.ReadWrite);
-
-        var (extractedMetadata, removedEntryCount) = ExtractOpenXmlMetadata(package.PackageProperties);
-
-        var props = package.PackageProperties;
-        props.Creator        = null;
-        props.LastModifiedBy = null;
-        props.Created        = null;
-        props.Modified       = null;
-        props.Title          = null;
-        props.Subject        = null;
-        props.Description    = null;
-        props.Keywords       = null;
-        props.Category       = null;
-        props.ContentStatus  = null;
-        props.Revision       = null;
-
-        package.Close();
-
-        return new RecFileMetadataResult
+        try
         {
-            ssCleanFile         = ms.ToArray(),
-            ssExtractedMetadata = extractedMetadata,
-            ssRemovedEntryCount = removedEntryCount,
-            ssIsPassthrough     = false
-        };
+            var ms = new MemoryStream();
+            ms.Write(rawFile, 0, rawFile.Length);
+            ms.Position = 0;
+
+            using var package = Package.Open(ms, FileMode.Open, FileAccess.ReadWrite);
+
+            var (extractedMetadata, removedEntryCount) = ExtractOpenXmlMetadata(package.PackageProperties);
+
+            var props = package.PackageProperties;
+            props.Creator        = null;
+            props.LastModifiedBy = null;
+            props.Created        = null;
+            props.Modified       = null;
+            props.Title          = null;
+            props.Subject        = null;
+            props.Description    = null;
+            props.Keywords       = null;
+            props.Category       = null;
+            props.ContentStatus  = null;
+            props.Revision       = null;
+
+            package.Close();
+
+            return new RecFileMetadataResult
+            {
+                ssCleanFile         = ms.ToArray(),
+                ssExtractedMetadata = extractedMetadata,
+                ssRemovedEntryCount = removedEntryCount,
+                ssIsPassthrough     = false
+            };
+        }
+        catch (Exception ex) when (
+            ex is FileFormatException  ||
+            ex is InvalidDataException ||
+            ex is NotSupportedException)
+        {
+            var note = new JsonObject
+            {
+                ["processingError"] = JsonValue.Create(
+                    "Metadata stripping was skipped — the OOXML file could not be opened (it may be encrypted or password-protected). " +
+                    $"Original file returned unchanged. Reason: {ex.GetType().Name}: {ex.Message}")
+            };
+            return new RecFileMetadataResult
+            {
+                ssCleanFile         = rawFile,
+                ssExtractedMetadata = note.ToJsonString(),
+                ssRemovedEntryCount = 0,
+                ssIsPassthrough     = false
+            };
+        }
     }
 
     private static (string json, int count) ExtractOpenXmlMetadata(PackageProperties props)

@@ -63,7 +63,7 @@ Calling `StripFileMetadata` at the earliest point in any flow that accepts file 
 
 | `CleanFile` | BinaryData | File with all metadata removed. Safe to forward to AI APIs or store. |
 
-| `ExtractedMetadata` | Text | JSON object of all metadata found and removed, keyed by type (`exif`, `iptc`, `xmp`, `title`, `author`, etc.). Returns `[]` when the file had no embedded metadata. |
+| `ExtractedMetadata` | Text | JSON object of all metadata found and removed, keyed by type (`exif`, `iptc`, `xmp`, `title`, `author`, etc.). Returns `[]` when the file had no embedded metadata. Contains a `processingError` key if the file could not be processed (e.g. encrypted or corrupted PDF/OOXML). |
 
 | `RemovedEntryCount` | Integer | Total number of metadata entries removed. Zero when the file was already clean. |
 
