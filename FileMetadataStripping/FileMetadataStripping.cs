@@ -82,14 +82,17 @@ public class FileMetadataStripping : IFileMetadataStripping
 
     private static FileMetadataResult StripImageMetadata(byte[] rawFile)
     {
-        using var image = new MagickImage(rawFile);
+        using var images = new MagickImageCollection(rawFile);
 
-        var (extractedMetadata, removedEntryCount) = ExtractImageMetadata(image);
+        // Extract metadata from the first frame; file-level profiles live there.
+        var (extractedMetadata, removedEntryCount) = ExtractImageMetadata((MagickImage)images[0]);
 
-        image.Strip(); // removes EXIF, IPTC, XMP, ICC profiles, and comments in one call
+        // Strip every frame — preserves animated GIFs and multi-frame TIFFs in full.
+        foreach (var frame in images)
+            frame.Strip(); // removes EXIF, IPTC, XMP, ICC profiles, and comments
 
         using var output = new MemoryStream();
-        image.Write(output); // preserves original format automatically
+        images.Write(output); // preserves original format and all frames automatically
 
         return new FileMetadataResult
         {
@@ -147,33 +150,79 @@ public class FileMetadataStripping : IFileMetadataStripping
 
     private static FileMetadataResult StripPdfMetadata(byte[] rawFile)
     {
-        using var input    = new MemoryStream(rawFile);
-        using var document = PdfReader.Open(input, PdfDocumentOpenMode.Modify);
+        using var input  = new MemoryStream(rawFile);
+        using var source = PdfReader.Open(input, PdfDocumentOpenMode.Import);
 
-        var (extractedMetadata, removedEntryCount) = ExtractPdfMetadata(document.Info);
+        // Extract metadata from the source document before creating the clean copy.
+        var (extractedMetadata, removedEntryCount) = ExtractPdfMetadata(source);
 
-        document.Info.Title    = string.Empty;
-        document.Info.Author   = string.Empty;
-        document.Info.Subject  = string.Empty;
-        document.Info.Keywords = string.Empty;
-        document.Info.Creator  = string.Empty;
-
+        // Create a fresh document and copy all pages.
+        // A new document has neither /Info metadata nor a catalog /Metadata entry.
+        using var dest   = new PdfDocument();
         using var output = new MemoryStream();
-        document.Save(output);
+
+        for (int i = 0; i < source.PageCount; i++)
+            dest.AddPage(source.Pages[i]);
+
+        // Explicitly blank /Info fields so read-back returns string.Empty rather than null.
+        dest.Info.Title    = string.Empty;
+        dest.Info.Author   = string.Empty;
+        dest.Info.Subject  = string.Empty;
+        dest.Info.Keywords = string.Empty;
+        dest.Info.Creator  = string.Empty;
+
+        dest.Save(output);
+
+        // PdfSharp 6.x's PdfCatalog.PrepareForSave() re-adds /Metadata to the
+        // catalog during Save, even when removed from Elements beforehand.
+        // Post-process the output bytes: replace every /Metadata indirect-reference
+        // token with an equal-length whitespace run.  Because no bytes are added or
+        // removed, all XRef byte offsets stay valid and the file remains well-formed.
+        var cleanBytes = EraseCatalogXmpKey(output.ToArray());
 
         return new FileMetadataResult
         {
-            CleanFile         = output.ToArray(),
+            CleanFile         = cleanBytes,
             ExtractedMetadata = extractedMetadata,
             RemovedEntryCount = removedEntryCount,
             IsPassthrough     = false
         };
     }
 
-    private static (string json, int count) ExtractPdfMetadata(PdfDocumentInformation info)
+    /// <summary>
+    /// Replaces every /Metadata indirect-reference token in a PDF file with an
+    /// equal-length run of spaces.  This neutralises the catalog XMP entry that
+    /// PdfSharp 6.x writes unconditionally during PrepareForSave, without altering
+    /// any byte positions (so all XRef offsets remain valid).
+    /// </summary>
+    private static byte[] EraseCatalogXmpKey(byte[] pdfBytes)
+    {
+        // PDF uses Latin-1 (ISO 8859-1) for its syntactic structure; converting to
+        // a Latin-1 string and back is a lossless round-trip for every byte value.
+        var text = System.Text.Encoding.Latin1.GetString(pdfBytes);
+
+        // In PdfSharp 6.x output the catalog /Metadata value is always an indirect
+        // object reference:  /Metadata N M R  (e.g. /Metadata 6 0 R)
+        // Replacing with the same number of ASCII spaces preserves byte positions.
+        var patched = System.Text.RegularExpressions.Regex.Replace(
+            text,
+            @"/Metadata\s+\d+\s+\d+\s+R",
+            m => new string(' ', m.Length));
+
+        // Safety net for the edge case where PdfSharp preserved a direct PdfString.
+        patched = System.Text.RegularExpressions.Regex.Replace(
+            patched,
+            @"/Metadata\s*\([^)]*\)",
+            m => new string(' ', m.Length));
+
+        return System.Text.Encoding.Latin1.GetBytes(patched);
+    }
+
+    private static (string json, int count) ExtractPdfMetadata(PdfDocument document)
     {
         var root  = new JsonObject();
         var count = 0;
+        var info  = document.Info;
 
         void Capture(string key, string? value)
         {
@@ -186,6 +235,12 @@ public class FileMetadataStripping : IFileMetadataStripping
         Capture("keywords", info.Keywords);
         Capture("creator",  info.Creator);
         Capture("producer", info.Producer);
+
+        if (document.Internals.Catalog.Elements.ContainsKey("/Metadata"))
+        {
+            root["xmp"] = "present";
+            count++;
+        }
 
         return count > 0 ? (root.ToJsonString(), count) : ("[]", 0);
     }

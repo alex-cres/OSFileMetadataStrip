@@ -353,4 +353,98 @@ public class ImageTests
             img.SetProfile(new XmpProfile(xmpBytes));
         });
     }
+
+    // ── Animated GIF ───────────────────────────────────────────────────────────
+
+    [Fact]
+    public void StripFileMetadata_WithAnimatedGif_AllFramesArePreserved()
+    {
+        var result = _sut.StripFileMetadata(TestHelpers.CreateAnimatedGif());
+
+        using var images = new MagickImageCollection(result.CleanFile);
+        Assert.Equal(3, images.Count);
+    }
+
+    [Fact]
+    public void StripFileMetadata_WithAnimatedGif_CleanFileIsDecodable()
+    {
+        var result = _sut.StripFileMetadata(TestHelpers.CreateAnimatedGif());
+
+        var ex = Record.Exception(() => new MagickImageCollection(result.CleanFile).Dispose());
+        Assert.Null(ex);
+    }
+
+    [Fact]
+    public void StripFileMetadata_WithAnimatedGif_DimensionsArePreserved()
+    {
+        var result = _sut.StripFileMetadata(TestHelpers.CreateAnimatedGif());
+
+        using var images = new MagickImageCollection(result.CleanFile);
+        Assert.Equal(10u, images[0].Width);
+        Assert.Equal(10u, images[0].Height);
+    }
+
+    [Fact]
+    public void StripFileMetadata_WithAnimatedGif_FormatRemainsGif()
+    {
+        var result = _sut.StripFileMetadata(TestHelpers.CreateAnimatedGif());
+
+        using var images = new MagickImageCollection(result.CleanFile);
+        Assert.Equal(MagickFormat.Gif, images[0].Format);
+    }
+
+    [Fact]
+    public void StripFileMetadata_WithAnimatedGif_IsPassthroughIsFalse()
+    {
+        var result = _sut.StripFileMetadata(TestHelpers.CreateAnimatedGif());
+
+        Assert.False(result.IsPassthrough);
+    }
+
+    // ── Multi-frame TIFF ───────────────────────────────────────────────────────
+
+    [Fact]
+    public void StripFileMetadata_WithMultiFrameTiff_AllFramesArePreserved()
+    {
+        var result = _sut.StripFileMetadata(TestHelpers.CreateMultiFrameTiff());
+
+        using var images = new MagickImageCollection(result.CleanFile);
+        Assert.Equal(3, images.Count);
+    }
+
+    [Fact]
+    public void StripFileMetadata_WithMultiFrameTiff_CleanFileIsDecodable()
+    {
+        var result = _sut.StripFileMetadata(TestHelpers.CreateMultiFrameTiff());
+
+        var ex = Record.Exception(() => new MagickImageCollection(result.CleanFile).Dispose());
+        Assert.Null(ex);
+    }
+
+    [Fact]
+    public void StripFileMetadata_WithMultiFrameTiff_DimensionsArePreserved()
+    {
+        var result = _sut.StripFileMetadata(TestHelpers.CreateMultiFrameTiff());
+
+        using var images = new MagickImageCollection(result.CleanFile);
+        Assert.Equal(10u, images[0].Width);
+        Assert.Equal(10u, images[0].Height);
+    }
+
+    [Fact]
+    public void StripFileMetadata_WithMultiFrameTiff_FormatRemainsTiff()
+    {
+        var result = _sut.StripFileMetadata(TestHelpers.CreateMultiFrameTiff());
+
+        using var images = new MagickImageCollection(result.CleanFile);
+        Assert.Equal(MagickFormat.Tiff, images[0].Format);
+    }
+
+    [Fact]
+    public void StripFileMetadata_WithMultiFrameTiff_IsPassthroughIsFalse()
+    {
+        var result = _sut.StripFileMetadata(TestHelpers.CreateMultiFrameTiff());
+
+        Assert.False(result.IsPassthrough);
+    }
 }

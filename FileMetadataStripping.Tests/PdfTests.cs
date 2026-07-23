@@ -78,4 +78,57 @@ public class PdfTests
 
         Assert.False(result.IsPassthrough);
     }
+
+    // ── XMP catalog stream ──────────────────────────────────────────────────────
+
+    [Fact]
+    public void StripFileMetadata_PdfWithXmp_CatalogMetadataEntryIsRemoved()
+    {
+        var input = TestHelpers.CreatePdfWithXmp();
+
+        var result = _sut.StripFileMetadata(input);
+
+        using var ms  = new MemoryStream(result.CleanFile);
+        using var doc = PdfReader.Open(ms, PdfDocumentOpenMode.Import);
+        Assert.False(doc.Internals.Catalog.Elements.ContainsKey("/Metadata"));
+    }
+
+    [Fact]
+    public void StripFileMetadata_PdfWithXmp_ExtractedMetadataContainsXmpKey()
+    {
+        var input = TestHelpers.CreatePdfWithXmp();
+
+        var result = _sut.StripFileMetadata(input);
+
+        Assert.Contains("\"xmp\"", result.ExtractedMetadata);
+    }
+
+    [Fact]
+    public void StripFileMetadata_PdfWithXmp_RemovedEntryCountIncludesXmp()
+    {
+        var input = TestHelpers.CreatePdfWithXmp();
+
+        var result = _sut.StripFileMetadata(input);
+
+        Assert.True(result.RemovedEntryCount >= 1);
+    }
+
+    [Fact]
+    public void StripFileMetadata_PdfWithXmp_OutputIsValidPdf()
+    {
+        var result = _sut.StripFileMetadata(TestHelpers.CreatePdfWithXmp());
+
+        Assert.Equal(0x25, result.CleanFile[0]); // %PDF magic bytes
+        Assert.Equal(0x50, result.CleanFile[1]);
+        Assert.Equal(0x44, result.CleanFile[2]);
+        Assert.Equal(0x46, result.CleanFile[3]);
+    }
+
+    [Fact]
+    public void StripFileMetadata_PdfWithXmp_IsPassthroughIsFalse()
+    {
+        var result = _sut.StripFileMetadata(TestHelpers.CreatePdfWithXmp());
+
+        Assert.False(result.IsPassthrough);
+    }
 }

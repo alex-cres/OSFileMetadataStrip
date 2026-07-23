@@ -39,6 +39,10 @@ Changes in progress — not yet published to OutSystems Forge.
 
 ## Changed
 
+- `StripImageMetadata` now uses `MagickImageCollection` instead of `MagickImage`: animated GIFs and multi-frame TIFFs are fully preserved after stripping (all frames stripped, all frames written). Previously only the first frame was kept.
+- 10 new xUnit tests added to `ImageTests` (ODC + O11): animated GIF and multi-frame TIFF round-trip, frame count, dimension, and format assertions.
+- `StripPdfMetadata` now removes the catalog `/Metadata` XMP stream in addition to the `/Info` dictionary fields. ODC: pages are copied to a fresh document (avoiding PdfSharp 6.x `PrepareForSave` re-adding the entry) and the `/Metadata` token in the saved bytes is whitespace-patched to keep XRef offsets valid. O11: `Elements.Remove("/Metadata")` on PdfSharp 1.50 is sufficient. 5 new xUnit tests added to `PdfTests` (ODC + O11): XMP detection, key removal, entry count, valid output, and passthrough flag.
+
 - `README.md` — updated to cover both ODC and O11 platforms, NuGet diff table, O11 usage and build instructions
 - `AGENTS.md` — updated project structure, coding conventions, NuGet diff table, and O11 test adapter pattern
 - Agent and skill documentation updated with XIF-based workflow, descriptions/icons O11 vs ODC contrast, and backup procedure

@@ -1,17 +1,31 @@
 #!/bin/sh
-# Auto-fix System.IO.Packaging version in the XIF source and backup csproj files.
+# Auto-fix vulnerable package versions in XIF source and backup csproj files.
 # Integration Studio regenerates these files on every save, reverting the
-# package version to whatever was last recorded in the .xif archive.
-# This hook ensures the patched version is always committed.
+# package versions to whatever was last recorded in the .xif archive.
+# This hook ensures patched versions are always committed.
+#
+# CVE-2024-43483 (CVSS 7.5): System.IO.Packaging < 8.0.1 — remote DoS
+# CVE-2024-43484 (CVSS 7.5): System.Text.Json  < 8.0.5 — remote DoS
 
-OLD='System.IO.Packaging" Version="8\.0\.0"'
-NEW='System.IO.Packaging" Version="8.0.1"'
+OLD_PACKAGING='System.IO.Packaging" Version="8\.0\.0"'
+NEW_PACKAGING='System.IO.Packaging" Version="8.0.1"'
+
+OLD_JSON='System.Text.Json" Version="8\.0\.[0-4]"'
+NEW_JSON='System.Text.Json" Version="8.0.5"'
 
 fix_file() {
-  if [ -f "$1" ] && grep -q "$OLD" "$1"; then
-    sed -i "s/$OLD/$NEW/g" "$1"
+  [ -f "$1" ] || return
+
+  if grep -q "$OLD_PACKAGING" "$1"; then
+    sed -i "s/$OLD_PACKAGING/$NEW_PACKAGING/g" "$1"
     git add "$1"
-    echo "pre-commit: bumped System.IO.Packaging 8.0.0 -> 8.0.1 in $1 (CVE-2024-43483/CVE-2024-43484)"
+    echo "pre-commit: bumped System.IO.Packaging 8.0.0 -> 8.0.1 in $1 (CVE-2024-43483)"
+  fi
+
+  if grep -q "$OLD_JSON" "$1"; then
+    sed -i "s/$OLD_JSON/$NEW_JSON/g" "$1"
+    git add "$1"
+    echo "pre-commit: bumped System.Text.Json 8.0.x -> 8.0.5 in $1 (CVE-2024-43484)"
   fi
 }
 

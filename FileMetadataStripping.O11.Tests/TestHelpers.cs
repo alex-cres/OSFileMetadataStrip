@@ -106,12 +106,58 @@ internal static class TestHelpers
         return ms.ToArray();
     }
 
+    internal static byte[] CreateAnimatedGif(int frameCount = 3)
+    {
+        using var images = new MagickImageCollection();
+        var colors = new[] { MagickColors.Red, MagickColors.LimeGreen, MagickColors.RoyalBlue };
+        for (int i = 0; i < frameCount; i++)
+        {
+            var frame = new MagickImage(colors[i % colors.Length], 10, 10);
+            frame.Format = MagickFormat.Gif;
+            frame.AnimationDelay = 10;
+            images.Add(frame);
+        }
+        using var ms = new MemoryStream();
+        images.Write(ms, MagickFormat.Gif);
+        return ms.ToArray();
+    }
+
+    internal static byte[] CreateMultiFrameTiff(int frameCount = 3)
+    {
+        using var images = new MagickImageCollection();
+        var colors = new[] { MagickColors.Red, MagickColors.LimeGreen, MagickColors.RoyalBlue };
+        for (int i = 0; i < frameCount; i++)
+        {
+            var frame = new MagickImage(colors[i % colors.Length], 10, 10);
+            frame.Format = MagickFormat.Tiff;
+            images.Add(frame);
+        }
+        using var ms = new MemoryStream();
+        images.Write(ms, MagickFormat.Tiff);
+        return ms.ToArray();
+    }
+
     internal static byte[] CreatePdf(string? author = null, string? title = null)
     {
         var doc = new PdfDocument();
         if (!string.IsNullOrEmpty(author)) doc.Info.Author = author;
         if (!string.IsNullOrEmpty(title))  doc.Info.Title  = title;
         doc.AddPage();
+        using var ms = new MemoryStream();
+        doc.Save(ms);
+        return ms.ToArray();
+    }
+
+    internal static byte[] CreatePdfWithXmp()
+    {
+        var doc = new PdfDocument();
+        doc.AddPage();
+        // Inject /Metadata as a simple string entry on the catalog.
+        // Using a direct stream object is invalid PDF (streams must be indirect),
+        // so a PdfString gives a well-formed document that PdfSharp can fully parse
+        // in Modify mode — ensuring Elements.Remove() is correctly tracked.
+        doc.Internals.Catalog.Elements["/Metadata"] =
+            new PdfString("<x:xmpmeta xmlns:x='adobe:ns:meta/'><rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'></rdf:RDF></x:xmpmeta>");
         using var ms = new MemoryStream();
         doc.Save(ms);
         return ms.ToArray();

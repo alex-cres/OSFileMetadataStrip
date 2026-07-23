@@ -1,6 +1,6 @@
-# FileMetadataStripping — OutSystems Forge Description
+# FileMetadataStripping — O11 Extension Forge Description
 
-> This file is the source of truth for the component description published on OutSystems Forge.
+> This file is the source of truth for the O11 extension description published on OutSystems Forge.
 > Update it whenever the component's behaviour, supported formats, or interface changes.
 > It is versioned alongside the codebase — a copy is kept per release under `docs/versions/`.
 
@@ -15,7 +15,7 @@ Strips EXIF, IPTC, XMP, and document metadata from uploaded files before they re
 ## Full Description
 
 ### What This Component Does
-**FileMetadataStripping** is a Library that removes all embedded metadata from uploaded files before they are forwarded to AI APIs or stored. It returns the clean file alongside a structured JSON record of what was found — enabling both security hardening and policy audit.
+**FileMetadataStripping** is an Extension that removes all embedded metadata from uploaded files before they are forwarded to AI APIs or stored. It returns the clean file alongside a structured JSON record of what was found — enabling both security hardening and policy audit.
 
 File metadata containers (EXIF in images, /Info in PDFs, core properties in Office files) can carry arbitrary text that is invisible to users, browsers, and image classifiers. An attacker can embed prompt-injection instructions in these fields using any standard tool, without altering the file visually. If the file reaches an AI model as part of a context message, that text is processed as trusted input.
 
@@ -73,11 +73,15 @@ Calling `StripFileMetadata` at the earliest point in any flow that accepts file 
 
 ### How to Use
 
-1. Upload the component ZIP to **ODC Portal → External Logic** and publish it as an External Library.
+1. Locate the XIF at `xif/FileMetadataStripping.xif` in the repository.
 
-2. In your ODC application, add **FileMetadaStripping** as a dependency.
+2. Open **Integration Studio** → **File → Open** → select the XIF.
 
-3. In any Server Action that receives an uploaded file, call `StripFileMetadata` **before** forwarding the file to an AI API:
+3. **1-Click Publish** to Service Center.
+
+4. In your O11 application, open **Service Studio** and add **FileMetadataStripping** as a dependency.
+
+5. In any Action that receives an uploaded file, call `StripFileMetadata` **before** forwarding the file to an AI API:
 
 ```
 
@@ -101,9 +105,9 @@ StripFileMetadata(RawFile: FileContent.Content)
 
 ### Requirements
 
-- OutSystems Developer Cloud (ODC)
+- OutSystems 11
 
-- .NET 10.0 (provided by the ODC platform)
+- .NET Framework 4.8
 
 ### Dependencies (all open-source)
 
@@ -111,7 +115,11 @@ StripFileMetadata(RawFile: FileContent.Content)
 
 |---------|---------|---------|
 
-| Magick.NET-Q8-AnyCPU | Apache 2.0 | Image decoding and metadata stripping || TagLibSharp | LGPL 2.1 | Audio and video metadata stripping || PDFsharp | MIT | PDF /Info dictionary access |
+| Magick.NET-Q8-AnyCPU | Apache 2.0 | Image decoding and metadata stripping |
+
+| TagLibSharp | LGPL 2.1 | Audio and video metadata stripping |
+
+| PDFsharp | MIT | PDF /Info dictionary access |
 
 | DocumentFormat.OpenXml | MIT | Office Open XML package properties |
 
@@ -120,6 +128,3 @@ StripFileMetadata(RawFile: FileContent.Content)
 ### License
 
 MIT
-
-
-

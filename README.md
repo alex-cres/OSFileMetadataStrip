@@ -25,7 +25,7 @@ File metadata containers (EXIF in images, IPTC/XMP in documents) can hold arbitr
 | Images | JPEG, PNG, GIF, BMP, TIFF, WebP, TGA, and 100+ more | EXIF, IPTC, XMP, ICC profiles, comments |
 | Audio | MP3, FLAC, OGG, WAV, M4A, WMA, and more | ID3 tags, Vorbis comments, metadata atoms (title, artist, album, comment, genre, …) |
 | Video | MP4, MOV, AVI, MKV, WebM, WMV | Metadata atoms/tags (title, artist, conductor, copyright, …) |
-| PDF | PDF | Title, Author, Subject, Keywords, Creator, Producer |
+| PDF | PDF | Title, Author, Subject, Keywords, Creator, Producer, and XMP catalog metadata stream |
 | Office documents | DOCX, XLSX, PPTX | Creator, LastModifiedBy, Created, Modified, Title, Subject, Description, Keywords, Category, ContentStatus, Revision |
 | Plain text / other | TXT, CSV, MD, JSON, XML, HTML, and any unrecognised format | Passthrough — returned unchanged with `IsPassthrough = true` |
 
@@ -57,7 +57,7 @@ Detects the file type from its binary signature, then routes to a format-specifi
 | Images (JPEG, PNG, GIF, BMP, TIFF, WebP, TGA, 100+…) | [Magick.NET](https://github.com/dlemstra/Magick.NET) (Apache 2.0) | All metadata via `image.Strip()` — EXIF, IPTC, XMP, ICC profiles, comments |
 | Audio (MP3, FLAC, OGG, WAV, M4A, WMA…) | [TagLibSharp](https://github.com/mono/taglib-sharp) (LGPL 2.1) | ID3 tags, Vorbis comments, metadata atoms |
 | Video (MP4, MOV, AVI, MKV, WebM, WMV) | [TagLibSharp](https://github.com/mono/taglib-sharp) (LGPL 2.1) | Metadata atoms/tags |
-| PDF | [PDFsharp](https://www.pdfsharp.net/) (MIT) | /Info dictionary fields (Title, Author, Subject, Keywords, Creator, Producer) |
+| PDF | [PDFsharp](https://www.pdfsharp.net/) (MIT) | /Info dictionary fields (Title, Author, Subject, Keywords, Creator, Producer) and XMP catalog metadata stream (/Metadata entry) |
 | Office Open XML (DOCX, XLSX, PPTX) | [DocumentFormat.OpenXml](https://github.com/dotnet/Open-XML-SDK) (MIT) | Core properties (Creator, LastModifiedBy, Created, Modified, Title, Subject, Description, Keywords, Category, ContentStatus, Revision) |
 | Plain text / unrecognised | — | Passthrough — `IsPassthrough = true`, file returned unchanged |
 

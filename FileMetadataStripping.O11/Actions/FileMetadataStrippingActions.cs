@@ -77,14 +77,17 @@ public class CssFileMetadataStripping : IssFileMetadataStripping
 
     private static RecFileMetadataResult StripImageMetadata(byte[] rawFile)
     {
-        using var image = new MagickImage(rawFile);
+        using var images = new MagickImageCollection(rawFile);
 
-        var (extractedMetadata, removedEntryCount) = ExtractImageMetadata(image);
+        // Extract metadata from the first frame; file-level profiles live there.
+        var (extractedMetadata, removedEntryCount) = ExtractImageMetadata((MagickImage)images[0]);
 
-        image.Strip();
+        // Strip every frame — preserves animated GIFs and multi-frame TIFFs in full.
+        foreach (var frame in images)
+            frame.Strip(); // removes EXIF, IPTC, XMP, ICC profiles, and comments
 
         using var output = new MemoryStream();
-        image.Write(output);
+        images.Write(output); // preserves original format and all frames automatically
 
         return new RecFileMetadataResult
         {
@@ -145,13 +148,18 @@ public class CssFileMetadataStripping : IssFileMetadataStripping
         using var input    = new MemoryStream(rawFile);
         using var document = PdfReader.Open(input, PdfDocumentOpenMode.Modify);
 
-        var (extractedMetadata, removedEntryCount) = ExtractPdfMetadata(document.Info);
+        var (extractedMetadata, removedEntryCount) = ExtractPdfMetadata(document);
 
         document.Info.Title    = string.Empty;
         document.Info.Author   = string.Empty;
         document.Info.Subject  = string.Empty;
         document.Info.Keywords = string.Empty;
         document.Info.Creator  = string.Empty;
+
+        // Strip catalog /Metadata XMP stream
+        var catalog = document.Internals.Catalog;
+        if (catalog.Elements.ContainsKey("/Metadata"))
+            catalog.Elements.Remove("/Metadata");
 
         using var output = new MemoryStream();
         document.Save(output);
@@ -165,10 +173,11 @@ public class CssFileMetadataStripping : IssFileMetadataStripping
         };
     }
 
-    private static (string json, int count) ExtractPdfMetadata(PdfDocumentInformation info)
+    private static (string json, int count) ExtractPdfMetadata(PdfDocument document)
     {
         var root  = new JsonObject();
         var count = 0;
+        var info  = document.Info;
 
         void Capture(string key, string? value)
         {
@@ -178,9 +187,15 @@ public class CssFileMetadataStripping : IssFileMetadataStripping
         Capture("title",    info.Title);
         Capture("author",   info.Author);
         Capture("subject",  info.Subject);
-        Capture("keywords", info.Keywords);
+        Capture("keywords",  info.Keywords);
         Capture("creator",  info.Creator);
         Capture("producer", info.Producer);
+
+        if (document.Internals.Catalog.Elements.ContainsKey("/Metadata"))
+        {
+            root["xmp"] = "present";
+            count++;
+        }
 
         return count > 0 ? (root.ToJsonString(), count) : ("[]", 0);
     }
