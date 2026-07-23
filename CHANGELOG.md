@@ -15,4 +15,4 @@ Versions correspond to releases published on the [OutSystems Forge](https://www.
 
 ---
 
-*When a Forge release is published, provide the version number to the OutSystems Extension Builder agent. It will create `docs/versions/v{x.y.z}.md`, add the entry to this table, and reset the Unreleased file.*
+*When a Forge release is published, provide the version number to create `docs/versions/v{x.y.z}.md`, add the entry to this table, and reset the Unreleased file.*
