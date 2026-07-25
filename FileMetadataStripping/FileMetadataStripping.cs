@@ -45,7 +45,11 @@ public class FileMetadataStripping : IFileMetadataStripping
             && rawFile[2] == 0x03 && rawFile[3] == 0x04)
             return IsOdfFormat(rawFile) ? FileCategory.Odf : FileCategory.OpenXml;
 
-        // Images: JPEG, PNG, GIF, BMP, TIFF, WebP, TGA, and 100+ more — detected by Magick.NET
+        // BMP: no metadata containers — passthrough (magic bytes "BM")
+        if (rawFile.Length >= 2 && rawFile[0] == 0x42 && rawFile[1] == 0x4D)
+            return FileCategory.Passthrough;
+
+        // Images: JPEG, PNG, GIF, TIFF, WebP, TGA, and 100+ more — detected by Magick.NET
         try
         {
             var info = new MagickImageInfo(rawFile);
@@ -124,6 +128,26 @@ public class FileMetadataStripping : IFileMetadataStripping
             }
             root["exif"] = exifNode;
         }
+        else
+        {
+            // TIFF (and some other formats) embed EXIF as native IFD tags that Magick.NET
+            // exposes as image attributes with an "EXIF:" prefix rather than a structured
+            // ExifProfile. Collect those attributes so they appear in ExtractedMetadata.
+            var exifAttrs = image.AttributeNames
+                .Where(n => n.StartsWith("EXIF:", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            if (exifAttrs.Count > 0)
+            {
+                var exifNode = new JsonObject();
+                foreach (var attrName in exifAttrs)
+                {
+                    var tag = attrName.Substring(5); // strip the "EXIF:" prefix
+                    exifNode[tag] = JsonValue.Create(image.GetAttribute(attrName));
+                    count++;
+                }
+                root["exif"] = exifNode;
+            }
+        }
 
         var iptcProfile = image.GetIptcProfile();
         if (iptcProfile != null)
@@ -145,6 +169,13 @@ public class FileMetadataStripping : IFileMetadataStripping
         if (xmpProfile != null)
         {
             root["xmp"] = "present";
+            count++;
+        }
+
+        var comment = image.Comment;
+        if (!string.IsNullOrEmpty(comment))
+        {
+            root["comment"] = comment;
             count++;
         }
 

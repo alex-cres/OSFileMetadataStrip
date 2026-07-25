@@ -11,6 +11,10 @@ Versions correspond to releases published on the [OutSystems Forge](https://www.
 | Version | Date | Notes |
 |---------|------|-------|
 | [Unreleased](./docs/versions/UNRELEASED.md) | — | In-progress changes not yet published to Forge |
+| [v0.1.4](./docs/versions/v0.1.4.md) | 2026-07-25 | Changed: BMP → passthrough; Fix: garbled UTF-8 characters in test files |
+| [v0.1.3](./docs/versions/v0.1.3.md) | 2026-07-24 | Fix: TIFF metadata extraction, test helper bugs (Package flush, minimal AVI), GenerateSamples TIFF sample |
+| [v0.1.2](./docs/versions/v0.1.2.md) | 2026-07-24 | Fix: image comment field now captured in ExtractedMetadata |
+| [v0.1.1](./docs/versions/v0.1.1.md) | 2026-07-24 | ODF support, OOXML app/custom/body-author stripping, PDF annotation author removal, O11 extension, graceful error handling, XMP stream removal |
 | [v0.1.0](./docs/versions/v0.1.0.md) | 2026-07-21 | Initial release |
 
 ---

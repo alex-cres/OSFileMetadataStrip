@@ -79,7 +79,7 @@ public class PdfTests
         Assert.False(result.IsPassthrough);
     }
 
-    // â”€â”€ XMP catalog stream â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── XMP catalog stream ──────────────────────────────────────────────────
 
     [Fact]
     public void StripFileMetadata_PdfWithXmp_CatalogMetadataEntryIsRemoved()
@@ -132,7 +132,7 @@ public class PdfTests
         Assert.False(result.IsPassthrough);
     }
 
-    // â”€â”€ Encrypted / unreadable PDF â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Encrypted / unreadable PDF ──────────────────────────────────────────────
 
     [Fact]
     public void StripFileMetadata_EncryptedPdf_DoesNotThrow()

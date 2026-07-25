@@ -8,8 +8,8 @@
             <summary>
             Strips metadata from a file. Supports images (EXIF/IPTC/XMP), PDFs, OOXML (DOCX/XLSX/PPTX), and audio/video (MP3/WAV/FLAC/OGG/MP4/MKV/AVI). Unrecognised formats returned unchanged with IsPassthrough=true.
             </summary>
-            <param name="ssRawFile"></param>
-            <param name="ssStripFileMetadata"></param>
+            <param name="ssRawFile">The uploaded file in any supported format.</param>
+            <param name="ssStripFileMetadata">The stripped file and audit metadata.</param>
         </member>
         <member name="M:OutSystems.NssFileMetadataStripping.IssFileMetadataStripping.MssStripFileMetadata(System.Byte[],OutSystems.NssFileMetadataStripping.RCFileMetadataResultRecord@)">
             <summary>

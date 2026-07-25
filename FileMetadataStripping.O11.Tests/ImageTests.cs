@@ -1,10 +1,10 @@
-using ImageMagick;
+﻿using ImageMagick;
 using Xunit;
 
 namespace FileMetadataStripping.Tests;
 
 /// <summary>
-/// Tests for image file stripping (JPEG, PNG, GIF, BMP, TIFF, WebP, TGA, â€¦).
+/// Tests for image file stripping (JPEG, PNG, GIF, BMP, TIFF, WebP, TGA, …).
 /// Covers: clean round-trip, EXIF removal, IPTC removal, XMP removal,
 /// combined profiles, format preservation, and security invariants.
 /// </summary>
@@ -12,7 +12,7 @@ public class ImageTests
 {
     private readonly IFileMetadataStripping _sut = new FileMetadataStripping();
 
-    // â”€â”€ Clean image â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Clean image ────────────────────────────────────────────────────────────
 
     [Fact]
     public void StripFileMetadata_WithCleanImage_CleanFileIsNonEmpty()
@@ -59,7 +59,7 @@ public class ImageTests
         Assert.False(result.IsPassthrough);
     }
 
-    // â”€â”€ EXIF â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── EXIF ───────────────────────────────────────────────────────────────────
 
     [Fact]
     public void StripFileMetadata_WithExifData_CleanFileHasNullExifProfile()
@@ -124,7 +124,7 @@ public class ImageTests
         Assert.NotNull(check.GetExifProfile());
     }
 
-    // â”€â”€ IPTC â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── IPTC ───────────────────────────────────────────────────────────────────
 
     [Fact]
     public void StripFileMetadata_WithIptcData_CleanFileHasNullIptcProfile()
@@ -157,7 +157,7 @@ public class ImageTests
         Assert.Contains("iptc", result.ExtractedMetadata);
     }
 
-    // â”€â”€ XMP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── XMP ────────────────────────────────────────────────────────────────────
 
     [Fact]
     public void StripFileMetadata_WithXmpData_CleanFileHasNullXmpProfile()
@@ -171,7 +171,7 @@ public class ImageTests
         Assert.Null(output.GetXmpProfile());
     }
 
-    // â”€â”€ All profiles combined â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── All profiles combined ──────────────────────────────────────────────────
 
     [Fact]
     public void StripFileMetadata_WithAllMetadataTypes_CleanFileHasNoProfiles()
@@ -213,7 +213,7 @@ public class ImageTests
         Assert.Null(ex);
     }
 
-    // â”€â”€ Format preservation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Format preservation ────────────────────────────────────────────────────
 
     [Fact]
     public void StripFileMetadata_JpegInput_OutputIsJpeg()
@@ -250,6 +250,37 @@ public class ImageTests
     }
 
     [Fact]
+    public void StripFileMetadata_PngWithExif_ExtractedMetadataContainsExifSection()
+    {
+        var input = TestHelpers.CreatePng(img =>
+        {
+            var exif = new ExifProfile();
+            exif.SetValue(ExifTag.ImageDescription, "injected via png");
+            img.SetProfile(exif);
+        });
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.Contains("exif", result.ExtractedMetadata);
+        Assert.Contains("ImageDescription", result.ExtractedMetadata);
+    }
+
+    [Fact]
+    public void StripFileMetadata_PngWithExif_RemovedEntryCountIsGreaterThanZero()
+    {
+        var input = TestHelpers.CreatePng(img =>
+        {
+            var exif = new ExifProfile();
+            exif.SetValue(ExifTag.ImageDescription, "injected via png");
+            img.SetProfile(exif);
+        });
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.True(result.RemovedEntryCount > 0);
+    }
+
+    [Fact]
     public void StripFileMetadata_GifInput_OutputIsGif()
     {
         var result = _sut.StripFileMetadata(TestHelpers.CreateGif(), false);
@@ -268,21 +299,25 @@ public class ImageTests
     }
 
     [Fact]
-    public void StripFileMetadata_BmpInput_OutputIsBmp()
+    public void StripFileMetadata_GifWithComment_CommentIsCapturedInExtractedMetadata()
     {
-        var result = _sut.StripFileMetadata(TestHelpers.CreateBmp(), false);
+        var gif = TestHelpers.CreateGif(img => img.Comment = "prompt injection payload");
 
-        var info = new MagickImageInfo(result.CleanFile);
-        Assert.Equal(MagickFormat.Bmp, info.Format);
+        var result = _sut.StripFileMetadata(gif, false);
+
+        Assert.Contains("comment", result.ExtractedMetadata);
+        Assert.Contains("prompt injection payload", result.ExtractedMetadata);
     }
 
     [Fact]
-    public void StripFileMetadata_BmpInput_CleanFileIsDecodable()
+    public void StripFileMetadata_GifWithComment_CommentIsRemovedFromCleanFile()
     {
-        var result = _sut.StripFileMetadata(TestHelpers.CreateBmp(), false);
+        var gif = TestHelpers.CreateGif(img => img.Comment = "prompt injection payload");
 
-        var ex = Record.Exception(() => new MagickImage(result.CleanFile).Dispose());
-        Assert.Null(ex);
+        var result = _sut.StripFileMetadata(gif, false);
+
+        using var clean = new MagickImage(result.CleanFile);
+        Assert.True(string.IsNullOrEmpty(clean.Comment));
     }
 
     [Fact]
@@ -297,17 +332,38 @@ public class ImageTests
     [Fact]
     public void StripFileMetadata_TiffInput_MetadataIsStripped()
     {
-        var input = TestHelpers.CreateTiff(img =>
-        {
-            var exif = new ExifProfile();
-            exif.SetValue(ExifTag.ImageDescription, "injected via tiff");
-            img.SetProfile(exif);
-        });
+        // Magick.NET's TIFF encoder silently drops ExifProfile; use XMP which survives the round-trip.
+        var xmpBytes = "<x:xmpmeta xmlns:x='adobe:ns:meta/'></x:xmpmeta>"u8.ToArray();
+        var input = TestHelpers.CreateTiff(img => img.SetProfile(new XmpProfile(xmpBytes)));
 
         var result = _sut.StripFileMetadata(input, false);
 
         using var decoded = new MagickImage(result.CleanFile);
-        Assert.Null(decoded.GetExifProfile());
+        Assert.Null(decoded.GetXmpProfile());
+    }
+
+    [Fact]
+    public void StripFileMetadata_TiffWithXmp_ExtractedMetadataContainsXmpSection()
+    {
+        // Magick.NET's TIFF encoder silently drops ExifProfile; XMP survives write/read for TIFF.
+        var xmpBytes = "<x:xmpmeta xmlns:x='adobe:ns:meta/'></x:xmpmeta>"u8.ToArray();
+        var input = TestHelpers.CreateTiff(img => img.SetProfile(new XmpProfile(xmpBytes)));
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.Contains("xmp", result.ExtractedMetadata);
+    }
+
+    [Fact]
+    public void StripFileMetadata_TiffWithXmp_RemovedEntryCountIsGreaterThanZero()
+    {
+        // Magick.NET's TIFF encoder silently drops ExifProfile; XMP survives write/read for TIFF.
+        var xmpBytes = "<x:xmpmeta xmlns:x='adobe:ns:meta/'></x:xmpmeta>"u8.ToArray();
+        var input = TestHelpers.CreateTiff(img => img.SetProfile(new XmpProfile(xmpBytes)));
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.True(result.RemovedEntryCount > 0);
     }
 
     [Fact]
@@ -335,8 +391,38 @@ public class ImageTests
         Assert.Null(decoded.GetExifProfile());
     }
 
-    // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Helpers ────────────────────────────────────────────────────────────────
 
+    [Fact]
+    public void StripFileMetadata_WebPWithExif_ExtractedMetadataContainsExifSection()
+    {
+        var input = TestHelpers.CreateWebP(img =>
+        {
+            var exif = new ExifProfile();
+            exif.SetValue(ExifTag.ImageDescription, "injected via webp");
+            img.SetProfile(exif);
+        });
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.Contains("exif", result.ExtractedMetadata);
+        Assert.Contains("ImageDescription", result.ExtractedMetadata);
+    }
+
+    [Fact]
+    public void StripFileMetadata_WebPWithExif_RemovedEntryCountIsGreaterThanZero()
+    {
+        var input = TestHelpers.CreateWebP(img =>
+        {
+            var exif = new ExifProfile();
+            exif.SetValue(ExifTag.ImageDescription, "injected via webp");
+            img.SetProfile(exif);
+        });
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.True(result.RemovedEntryCount > 0);
+    }
     private static byte[] CreateJpegWithAllMetadata()
     {
         var xmpBytes = "<x:xmpmeta xmlns:x='adobe:ns:meta/'></x:xmpmeta>"u8.ToArray();
@@ -354,7 +440,7 @@ public class ImageTests
         });
     }
 
-    // â”€â”€ Animated GIF â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Animated GIF ───────────────────────────────────────────────────────────
 
     [Fact]
     public void StripFileMetadata_WithAnimatedGif_AllFramesArePreserved()
@@ -401,7 +487,7 @@ public class ImageTests
         Assert.False(result.IsPassthrough);
     }
 
-    // â”€â”€ Multi-frame TIFF â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Multi-frame TIFF ───────────────────────────────────────────────────────
 
     [Fact]
     public void StripFileMetadata_WithMultiFrameTiff_AllFramesArePreserved()

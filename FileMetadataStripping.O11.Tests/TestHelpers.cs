@@ -176,6 +176,34 @@ internal static class TestHelpers
         return ms.ToArray();
     }
 
+    internal static byte[] CreateXlsx(string? creator = null)
+    {
+        using var ms = new MemoryStream();
+        using (var package = Package.Open(ms, FileMode.Create, FileAccess.ReadWrite))
+        {
+            var uri = PackUriHelper.CreatePartUri(new Uri("/xl/workbook.xml", UriKind.Relative));
+            package.CreatePart(uri, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml");
+            package.CreateRelationship(uri, TargetMode.Internal,
+                "http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument");
+            if (!string.IsNullOrEmpty(creator)) package.PackageProperties.Creator = creator;
+        } // Dispose flushes the ZIP data to the stream before ToArray().
+        return ms.ToArray();
+    }
+
+    internal static byte[] CreatePptx(string? creator = null)
+    {
+        using var ms = new MemoryStream();
+        using (var package = Package.Open(ms, FileMode.Create, FileAccess.ReadWrite))
+        {
+            var uri = PackUriHelper.CreatePartUri(new Uri("/ppt/presentation.xml", UriKind.Relative));
+            package.CreatePart(uri, "application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml");
+            package.CreateRelationship(uri, TargetMode.Internal,
+                "http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument");
+            if (!string.IsNullOrEmpty(creator)) package.PackageProperties.Creator = creator;
+        } // Dispose flushes the ZIP data to the stream before ToArray().
+        return ms.ToArray();
+    }
+
     /// <summary>
     /// Creates a byte array with PDF magic bytes followed by invalid content.
     /// PdfSharp will throw PdfReaderException when trying to open this file,
@@ -322,11 +350,49 @@ internal static class TestHelpers
 
     private static byte[] BuildMinimalAvi()
     {
+        // A minimal but structurally valid AVI that TagLib can parse and write metadata to.
+        // Structure: RIFF/AVI  > LIST/hdrl > avih + LIST/strl > strh + strf
+        //                      > LIST/movi
+        const uint avihSize = 56;
+        const uint strhSize = 56;
+        const uint strfSize = 40;
+        const uint strlSize = 4 + (4 + 4 + strhSize) + (4 + 4 + strfSize);
+        const uint hdrlSize = 4 + (4 + 4 + avihSize) + (4 + 4 + strlSize);
+        const uint moviSize = 4;
+        const uint riffSize = 4 + (4 + 4 + hdrlSize) + (4 + 4 + moviSize);
+
         using var ms = new MemoryStream();
         using var bw = new BinaryWriter(ms, System.Text.Encoding.ASCII, leaveOpen: true);
-        bw.Write(new byte[] { 0x52, 0x49, 0x46, 0x46 });
-        bw.Write((uint)4);
-        bw.Write(new byte[] { 0x41, 0x56, 0x49, 0x20 });
+
+        bw.Write(new byte[] { 0x52, 0x49, 0x46, 0x46 }); // "RIFF"
+        bw.Write(riffSize);
+        bw.Write(new byte[] { 0x41, 0x56, 0x49, 0x20 }); // "AVI "
+
+        bw.Write(new byte[] { 0x4C, 0x49, 0x53, 0x54 }); // "LIST"
+        bw.Write(hdrlSize);
+        bw.Write(new byte[] { 0x68, 0x64, 0x72, 0x6C }); // "hdrl"
+
+        bw.Write(new byte[] { 0x61, 0x76, 0x69, 0x68 }); // "avih"
+        bw.Write(avihSize);
+        bw.Write(new byte[avihSize]);
+
+        bw.Write(new byte[] { 0x4C, 0x49, 0x53, 0x54 }); // "LIST"
+        bw.Write(strlSize);
+        bw.Write(new byte[] { 0x73, 0x74, 0x72, 0x6C }); // "strl"
+
+        bw.Write(new byte[] { 0x73, 0x74, 0x72, 0x68 }); // "strh"
+        bw.Write(strhSize);
+        bw.Write(new byte[] { 0x76, 0x69, 0x64, 0x73 }); // "vids"
+        bw.Write(new byte[52]);
+
+        bw.Write(new byte[] { 0x73, 0x74, 0x72, 0x66 }); // "strf"
+        bw.Write(strfSize);
+        bw.Write(new byte[strfSize]);
+
+        bw.Write(new byte[] { 0x4C, 0x49, 0x53, 0x54 }); // "LIST"
+        bw.Write(moviSize);
+        bw.Write(new byte[] { 0x6D, 0x6F, 0x76, 0x69 }); // "movi"
+
         bw.Flush();
         return ms.ToArray();
     }

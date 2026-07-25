@@ -1,0 +1,109 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>OutSystems.NssFileMetadataStripping</name>
+    </assembly>
+    <members>
+        <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.MssStripFileMetadata(System.Byte[],OutSystems.NssFileMetadataStripping.RCFileMetadataResultRecord@)">
+            <summary>
+            Strips metadata from a file. Supports images (EXIF/IPTC/XMP), PDFs, OOXML (DOCX/XLSX/PPTX), and audio/video (MP3/WAV/FLAC/OGG/MP4/MKV/AVI). Unrecognised formats returned unchanged with IsPassthrough=true.
+            </summary>
+            <param name="ssRawFile">The uploaded file in any supported format.</param>
+            <param name="ssStripFileMetadata">The stripped file and audit metadata.</param>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.IssFileMetadataStripping.MssStripFileMetadata(System.Byte[],OutSystems.NssFileMetadataStripping.RCFileMetadataResultRecord@)">
+            <summary>
+            Strips metadata from a file. Supports images (EXIF/IPTC/XMP), PDFs, OOXML (DOCX/XLSX/PPTX), and audio/video (MP3/WAV/FLAC/OGG/MP4/MKV/AVI). Unrecognised formats returned unchanged with IsPassthrough=true.
+            </summary>
+            <param name="ssRawFile">The uploaded file in any supported format: images (JPEG, PNG, TIFF, WebP, etc.), PDF, Office documents (DOCX, XLSX, PPTX), or audio/video (MP3, WAV, MP4, etc.).</param>
+            <param name="ssStripFileMetadata">The stripped file and audit metadata. CleanFile is safe to forward to AI APIs. ExtractedMetadata contains the removed entries as JSON. RemovedEntryCount and IsPassthrough support audit logging.</param>
+        </member>
+        <member name="T:OutSystems.NssFileMetadataStripping.STFileMetadataResultStructure">
+            <summary>
+            Structure <code>STFileMetadataResultStructure</code> that represents the Service Studio structure
+             <code>FileMetadataResult</code> <p> Description: Result of stripping metadata from a file
+            , including the clean file and the metadata that was removed for policy review.</p>
+            </summary>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.STFileMetadataResultStructure.Read(System.Data.IDataReader,System.Int32@)">
+            <summary>
+            Read a record from database
+            </summary>
+            <param name="r"> Data base reader</param>
+            <param name="index"> index</param>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.STFileMetadataResultStructure.ReadDB(System.Data.IDataReader)">
+            <summary>
+            Read from database
+            </summary>
+            <param name="r"> Data reader</param>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.STFileMetadataResultStructure.ReadIM(OutSystems.NssFileMetadataStripping.STFileMetadataResultStructure)">
+            <summary>
+            Read from record
+            </summary>
+            <param name="r"> Record</param>
+        </member>
+        <member name="T:OutSystems.NssFileMetadataStripping.RCFileMetadataResultRecord">
+            <summary>
+            Structure <code>RCFileMetadataResultRecord</code>
+            </summary>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.RCFileMetadataResultRecord.Read(System.Data.IDataReader,System.Int32@)">
+            <summary>
+            Read a record from database
+            </summary>
+            <param name="r"> Data base reader</param>
+            <param name="index"> index</param>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.RCFileMetadataResultRecord.ReadDB(System.Data.IDataReader)">
+            <summary>
+            Read from database
+            </summary>
+            <param name="r"> Data reader</param>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.RCFileMetadataResultRecord.ReadIM(OutSystems.NssFileMetadataStripping.RCFileMetadataResultRecord)">
+            <summary>
+            Read from record
+            </summary>
+            <param name="r"> Record</param>
+        </member>
+        <member name="T:OutSystems.NssFileMetadataStripping.RLFileMetadataResultRecordList">
+            <summary>
+            RecordList type <code>RLFileMetadataResultRecordList</code> that represents a record list of
+             <code>FileMetadataResult</code>
+            </summary>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.RLFileMetadataResultRecordList.#ctor">
+            <summary>
+            Default Constructor
+            </summary>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.RLFileMetadataResultRecordList.#ctor(System.Data.IDbTransaction)">
+            <summary>
+            Constructor with transaction parameter
+            </summary>
+            <param name="trans"> IDbTransaction Parameter</param>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.RLFileMetadataResultRecordList.#ctor(System.Data.IDbTransaction,OutSystems.HubEdition.RuntimePlatform.Db.OSList{OutSystems.NssFileMetadataStripping.RCFileMetadataResultRecord}.ReadDBMethodDelegate)">
+            <summary>
+            Constructor with transaction parameter and alternate read method
+            </summary>
+            <param name="trans"> IDbTransaction Parameter</param>
+            <param name="alternateReadDBMethod"> Alternate Read Method</param>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.RLFileMetadataResultRecordList.#ctor(System.Runtime.Serialization.SerializationInfo,System.Runtime.Serialization.StreamingContext)">
+            <summary>
+            Constructor declaration for serialization
+            </summary>
+            <param name="info"> SerializationInfo</param>
+            <param name="context"> StreamingContext</param>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.RLFileMetadataResultRecordList.NewList">
+            <summary>
+            Create as new list
+            </summary>
+            <returns>The new record list</returns>
+        </member>
+    </members>
+</doc>

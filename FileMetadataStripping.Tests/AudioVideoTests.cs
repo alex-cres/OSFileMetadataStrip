@@ -1,4 +1,4 @@
-using TagLib;
+﻿using TagLib;
 using Xunit;
 
 namespace FileMetadataStripping.Tests;
@@ -9,13 +9,13 @@ namespace FileMetadataStripping.Tests;
 /// Formats where TagLibSharp can work with minimal constructed files also get
 /// metadata strip tests (title/artist cleared, extracted metadata captured).
 ///
-/// Test data is generated programmatically â€” no binary files are committed.
+/// Test data is generated programmatically — no binary files are committed.
 /// </summary>
 public class AudioVideoTests
 {
     private readonly IFileMetadataStripping _sut = new FileMetadataStripping();
 
-    // â”€â”€ WAV (full strip tests â€” easiest format to construct programmatically) â”€â”€â”€â”€â”€
+    // ── WAV (full strip tests — easiest format to construct programmatically) ─────
 
     [Fact]
     public void StripFileMetadata_WavWithTitle_TitleIsCleared()
@@ -109,7 +109,7 @@ public class AudioVideoTests
         Assert.Equal("[]", result.ExtractedMetadata);
     }
 
-    // â”€â”€ MP3 (full strip tests â€” minimal ID3v2 header is writable by TagLibSharp) â”€
+    // ── MP3 (full strip tests — minimal ID3v2 header is writable by TagLibSharp) ─
 
     [Fact]
     public void StripFileMetadata_Mp3WithTitle_TitleIsCleared()
@@ -147,7 +147,7 @@ public class AudioVideoTests
     public void StripFileMetadata_Mp3_IsPassthroughIsFalse()
         => Assert.False(_sut.StripFileMetadata(TestHelpers.CreateMp3(), false).IsPassthrough);
 
-    // â”€â”€ FLAC â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── FLAC ────────────────────────────────────────────────────────────────────
 
     [Fact]
     public void StripFileMetadata_Flac_IsPassthroughIsFalse()
@@ -172,7 +172,7 @@ public class AudioVideoTests
         Assert.Equal(0x43, result.CleanFile[3]); // C
     }
 
-    // â”€â”€ OGG â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── OGG ─────────────────────────────────────────────────────────────────────
 
     [Fact]
     public void StripFileMetadata_Ogg_IsPassthroughIsFalse()
@@ -193,7 +193,7 @@ public class AudioVideoTests
         Assert.Equal(0x53, result.CleanFile[3]); // S
     }
 
-    // â”€â”€ MP4 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── MP4 ─────────────────────────────────────────────────────────────────────
 
     [Fact]
     public void StripFileMetadata_Mp4_IsPassthroughIsFalse()
@@ -214,7 +214,7 @@ public class AudioVideoTests
         Assert.Equal(0x70, result.CleanFile[7]); // p
     }
 
-    // â”€â”€ MKV â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── MKV ─────────────────────────────────────────────────────────────────────
 
     [Fact]
     public void StripFileMetadata_Mkv_IsPassthroughIsFalse()
@@ -235,7 +235,7 @@ public class AudioVideoTests
         Assert.Equal(0xA3, result.CleanFile[3]);
     }
 
-    // â”€â”€ AVI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── AVI ─────────────────────────────────────────────────────────────────────
 
     [Fact]
     public void StripFileMetadata_Avi_IsPassthroughIsFalse()
@@ -259,7 +259,41 @@ public class AudioVideoTests
         Assert.Equal(0x49, result.CleanFile[10]); // I
     }
 
-    // â”€â”€ Processing error message â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Processing error message ───────────────────────────────────────────────
+
+
+    [Fact]
+    public void StripFileMetadata_AviWithTitle_TitleIsCleared()
+    {
+        var input = TestHelpers.CreateAvi(title: "Injected Title");
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        var ms = new MemoryStream(result.CleanFile);
+        using var file = TagLib.File.Create(new TestHelpers.TagLibStreamAbstraction("test.avi", ms));
+        Assert.True(string.IsNullOrEmpty(file.Tag.Title));
+    }
+
+    [Fact]
+    public void StripFileMetadata_AviWithMetadata_ExtractedContainsTitle()
+    {
+        var input = TestHelpers.CreateAvi(title: "Injected Title");
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.Contains("title", result.ExtractedMetadata);
+        Assert.Contains("Injected Title", result.ExtractedMetadata);
+    }
+
+    [Fact]
+    public void StripFileMetadata_AviWithMetadata_RemovedEntryCountIsGreaterThanZero()
+    {
+        var input = TestHelpers.CreateAvi(title: "Injected Title");
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.True(result.RemovedEntryCount > 0);
+    }
 
     [Fact]
     public void StripFileMetadata_UnparsableMediaFile_ExtractedMetadataContainsProcessingError()
@@ -271,7 +305,7 @@ public class AudioVideoTests
         var result = _sut.StripFileMetadata(input, false);
 
         // Either it was successfully processed (no error key) or it contains a processing note
-        // â€” either way IsPassthrough must be false (it IS a media format)
+        // — either way IsPassthrough must be false (it IS a media format)
         Assert.False(result.IsPassthrough);
 
         if (result.ExtractedMetadata != "[]")

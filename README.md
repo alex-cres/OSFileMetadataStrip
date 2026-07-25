@@ -22,13 +22,13 @@ File metadata containers (EXIF in images, IPTC/XMP in documents) can hold arbitr
 
 | Category | Formats | Metadata Stripped |
 |----------|---------|-------------------|
-| Images | JPEG, PNG, GIF, BMP, TIFF, WebP, TGA, and 100+ more | EXIF, IPTC, XMP, ICC profiles, comments |
+| Images | JPEG, PNG, GIF, TIFF, WebP, TGA, and 100+ more | EXIF, IPTC, XMP, ICC profiles, comments |
 | Audio | MP3, FLAC, OGG, WAV, M4A, WMA, and more | ID3 tags, Vorbis comments, metadata atoms (title, artist, album, comment, genre, …) |
 | Video | MP4, MOV, AVI, MKV, WebM, WMV | Metadata atoms/tags (title, artist, conductor, copyright, …) |
 | PDF | PDF | Title, Author, Subject, Keywords, Creator, Producer, XMP catalog metadata stream, and annotation Author fields (comment, sticky-note, markup annotations) |
 | Office documents | DOCX, XLSX, PPTX | Core properties (Creator, LastModifiedBy, Created, Modified, Title, Subject, Description, Keywords, Category, ContentStatus, Revision, LastPrinted, Identifier, Version), application properties (Application, Company, Manager, AppVersion, Template, HyperlinkBase), custom property key/value pairs. When `StripBodyAuthors = True`: also blanks author names from tracked changes, comments, and Excel 365 xl/persons entries. |
 | ODF documents | ODT, ODS, ODP | dc:creator, dc:title, dc:description, dc:subject, meta:initial-creator, meta:generator, meta:editing-cycles, meta:editing-duration, and all meta:user-defined properties |
-| Plain text / other | TXT, CSV, MD, JSON, XML, HTML, and any unrecognised format | Passthrough — returned unchanged with `IsPassthrough = true` |
+| Plain text / other | BMP, TXT, CSV, MD, JSON, XML, HTML, and any unrecognised format | Passthrough — returned unchanged with `IsPassthrough = true` |
 
 ---
 
@@ -45,7 +45,7 @@ File metadata containers (EXIF in images, IPTC/XMP in documents) can hold arbitr
 | `CleanFile` | `BinaryData` | The file with all metadata removed. Safe to forward to AI APIs or store. |
 | `ExtractedMetadata` | `Text` | JSON object of all metadata entries found and removed. Keys vary by format: images use `exif`/`iptc`/`xmp`; PDFs use `title`/`author`/`subject`/`keywords`/`creator`/`producer`/`annotationAuthors`; OOXML uses `creator`/`lastModifiedBy`/`revision`/`lastPrinted`/`identifier`/`version` and other core property keys, `appCompany`/`appManager`/`appVersion`/`appApplication`/`appTemplate`/`appHyperlinkBase` for application properties, `customProperties` for custom properties, and `strippedAuthors` when `StripBodyAuthors = True`; ODF uses `creator`/`title`/`description`/`subject`/`initialCreator`/`generator`/`editingCycles`/`editingDuration`/`userDefinedProperties`. Returns `[]` when no metadata was present. |
 | `RemovedEntryCount` | `Integer` | Total number of metadata entries removed. Zero when the file had no embedded metadata. |
-| `IsPassthrough` | `Boolean` | `True` when the file format has no supported metadata containers (e.g. TXT, CSV, MD, JSON) and was returned unchanged. Use this flag in audit logs to distinguish passthrough files from files that were actively processed and found clean. |
+| `IsPassthrough` | `Boolean` | `True` when the file format has no supported metadata containers (e.g. BMP, TXT, CSV, MD, JSON) and was returned unchanged. Use this flag in audit logs to distinguish passthrough files from files that were actively processed and found clean. |
 
 ---
 
@@ -55,13 +55,13 @@ Detects the file type from its binary signature, then routes to a format-specifi
 
 | File type | Library | What's stripped |
 |-----------|---------|----------------|
-| Images (JPEG, PNG, GIF, BMP, TIFF, WebP, TGA, 100+…) | [Magick.NET](https://github.com/dlemstra/Magick.NET) (Apache 2.0) | All metadata via `image.Strip()` — EXIF, IPTC, XMP, ICC profiles, comments |
+| Images (JPEG, PNG, GIF, TIFF, WebP, TGA, 100+…) | [Magick.NET](https://github.com/dlemstra/Magick.NET) (Apache 2.0) | All metadata via `image.Strip()` — EXIF, IPTC, XMP, ICC profiles, comments |
 | Audio (MP3, FLAC, OGG, WAV, M4A, WMA…) | [TagLibSharp](https://github.com/mono/taglib-sharp) (LGPL 2.1) | ID3 tags, Vorbis comments, metadata atoms |
 | Video (MP4, MOV, AVI, MKV, WebM, WMV) | [TagLibSharp](https://github.com/mono/taglib-sharp) (LGPL 2.1) | Metadata atoms/tags |
 | PDF | [PDFsharp](https://www.pdfsharp.net/) (MIT) | /Info dictionary fields (Title, Author, Subject, Keywords, Creator, Producer), XMP catalog metadata stream (/Metadata entry), and annotation /Author fields (comment, sticky-note, and markup annotations) |
 | Office Open XML (DOCX, XLSX, PPTX) | [DocumentFormat.OpenXml](https://github.com/dotnet/Open-XML-SDK) (MIT) | Core properties (Creator, LastModifiedBy, Created, Modified, Title, Subject, Description, Keywords, Category, ContentStatus, Revision, LastPrinted, Identifier, Version), application properties (Application, Company, Manager, AppVersion, Template, HyperlinkBase), custom property key/value pairs. When `StripBodyAuthors = True`: also blanks `w:author`/`w:initials` in DOCX, `<author>` elements in XLSX, `name`/`initials` in PPTX comment authors, and `displayName`/`userId` in xl/persons. |
 | ODF (ODT, ODS, ODP) | System.IO.Compression (BCL) | dc:creator, dc:title, dc:description, dc:subject, meta:initial-creator, meta:generator, meta:editing-cycles, meta:editing-duration, and all meta:user-defined properties in meta.xml |
-| Plain text / unrecognised | — | Passthrough — `IsPassthrough = true`, file returned unchanged |
+| BMP / plain text / unrecognised | — | Passthrough — `IsPassthrough = true`, file returned unchanged |
 
 > **Note:** If a PDF or OOXML file is encrypted, password-protected, or corrupted and cannot be opened, the original file is returned unchanged (`IsPassthrough = false`, `RemovedEntryCount = 0`) and `ExtractedMetadata` contains a `processingError` key. No exception is raised.
 

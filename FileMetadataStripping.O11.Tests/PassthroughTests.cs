@@ -4,7 +4,7 @@ namespace FileMetadataStripping.Tests;
 
 /// <summary>
 /// Tests for the passthrough behaviour for file formats that have no supported metadata containers
-/// (plain text, CSV, JSON, XML, Markdown, and any other unrecognised format).
+/// (BMP, plain text, CSV, JSON, XML, Markdown, and any other unrecognised format).
 ///
 /// Passthrough contract:
 /// - CleanFile   = original bytes unchanged
@@ -18,12 +18,41 @@ public class PassthroughTests
 {
     private readonly IFileMetadataStripping _sut = new FileMetadataStripping();
 
-    // â”€â”€ Plain text passthrough â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── BMP passthrough ────────────────────────────────────────────────────────
+
+    [Fact]
+    public void StripFileMetadata_BmpInput_IsPassthroughIsTrue()
+    {
+        var result = _sut.StripFileMetadata(TestHelpers.CreateBmp(), false);
+
+        Assert.True(result.IsPassthrough);
+    }
+
+    [Fact]
+    public void StripFileMetadata_BmpInput_CleanFileEqualsInput()
+    {
+        var input = TestHelpers.CreateBmp();
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.Equal(input, result.CleanFile);
+    }
+
+    [Fact]
+    public void StripFileMetadata_BmpInput_NothingRemovedAndMetadataIsEmpty()
+    {
+        var result = _sut.StripFileMetadata(TestHelpers.CreateBmp(), false);
+
+        Assert.Equal(0, result.RemovedEntryCount);
+        Assert.Equal("[]", result.ExtractedMetadata);
+    }
+
+    // ── Plain text passthrough ─────────────────────────────────────────────────
 
     [Fact]
     public void StripFileMetadata_PlainText_IsPassthroughIsTrue()
     {
-        var input = "Hello world â€” plain text file"u8.ToArray();
+        var input = "Hello world — plain text file"u8.ToArray();
 
         var result = _sut.StripFileMetadata(input, false);
 
@@ -51,7 +80,7 @@ public class PassthroughTests
         Assert.Equal("[]", result.ExtractedMetadata);
     }
 
-    // â”€â”€ IsPassthrough = false for active formats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── IsPassthrough = false for active formats ───────────────────────────────
 
     [Fact]
     public void StripFileMetadata_Image_IsPassthroughIsFalse()

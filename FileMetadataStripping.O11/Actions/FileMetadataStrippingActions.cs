@@ -48,7 +48,11 @@ public class CssFileMetadataStripping : IssFileMetadataStripping
             && rawFile[2] == 0x03 && rawFile[3] == 0x04)
             return IsOdfFormat(rawFile) ? FileCategory.Odf : FileCategory.OpenXml;
 
-        // Images: detected by Magick.NET (JPEG, PNG, GIF, BMP, TIFF, WebP, TGA, 100+ more)
+        // BMP: no metadata containers — passthrough (magic bytes "BM")
+        if (rawFile.Length >= 2 && rawFile[0] == 0x42 && rawFile[1] == 0x4D)
+            return FileCategory.Passthrough;
+
+        // Images: detected by Magick.NET (JPEG, PNG, GIF, TIFF, WebP, TGA, 100+ more)
         try
         {
             var info = new MagickImageInfo(rawFile);
@@ -140,6 +144,13 @@ public class CssFileMetadataStripping : IssFileMetadataStripping
         if (xmpProfile != null)
         {
             root["xmp"] = "present";
+            count++;
+        }
+
+        var comment = image.Comment;
+        if (!string.IsNullOrEmpty(comment))
+        {
+            root["comment"] = comment;
             count++;
         }
 

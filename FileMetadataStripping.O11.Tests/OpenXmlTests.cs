@@ -66,7 +66,7 @@ public class OpenXmlTests
         Assert.False(result.IsPassthrough);
     }
 
-    // â”€â”€ Encrypted / unreadable OOXML â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Encrypted / unreadable OOXML ──────────────────────────────────────────────
 
     [Fact]
     public void StripFileMetadata_EncryptedDocx_DoesNotThrow()
@@ -100,7 +100,7 @@ public class OpenXmlTests
         Assert.False(result.IsPassthrough);
     }
 
-    // â”€â”€ App properties (docProps/app.xml) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── App properties (docProps/app.xml) ──────────────────────────────────────────────────────────────────────
 
     [Fact]
     public void StripFileMetadata_DocxWithAppCompany_CompanyIsCleared()
@@ -129,7 +129,7 @@ public class OpenXmlTests
         Assert.Contains("Acme Corp", result.ExtractedMetadata);
     }
 
-    // â”€â”€ Custom properties (docProps/custom.xml) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Custom properties (docProps/custom.xml) ─────────────────────────────────────────────────────────────────
 
     [Fact]
     public void StripFileMetadata_DocxWithCustomProperties_CustomPropsAreCleared()
@@ -160,7 +160,7 @@ public class OpenXmlTests
         Assert.Contains("ProjectCode", result.ExtractedMetadata);
     }
 
-    // â”€â”€ Tracked changes â€” DOCX â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Tracked changes — DOCX ─────────────────────────────────────────────────────────────────────────────────
 
     [Fact]
     public void StripFileMetadata_DocxWithTrackedChanges_AuthorNameIsBlankInOutput()
@@ -192,7 +192,7 @@ public class OpenXmlTests
         Assert.Contains("John Doe", result.ExtractedMetadata);
     }
 
-    // â”€â”€ Comments â€” DOCX â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Comments — DOCX ───────────────────────────────────────────────────────────────────────────────────────
 
     [Fact]
     public void StripFileMetadata_DocxWithComment_AuthorNameIsBlankInOutput()
@@ -232,7 +232,7 @@ public class OpenXmlTests
         Assert.All(initialsAttrs, a => Assert.Empty(a!.Value));
     }
 
-    // â”€â”€ Comments â€” XLSX â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Comments — XLSX ───────────────────────────────────────────────────────────────────────────────────────
 
     [Fact]
     public void StripFileMetadata_XlsxWithComments_AuthorNameIsBlankInOutput()
@@ -261,7 +261,7 @@ public class OpenXmlTests
         Assert.Contains("Excel Author", result.ExtractedMetadata);
     }
 
-    // â”€â”€ Comments â€” PPTX â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Comments — PPTX ───────────────────────────────────────────────────────────────────────────────────────
 
     [Fact]
     public void StripFileMetadata_PptxWithCommentAuthors_AuthorNameIsBlankInOutput()
@@ -443,5 +443,51 @@ public class OpenXmlTests
             .Where(a => a != null)
             .ToList();
         Assert.All(nameAttrs, a => Assert.Equal("Alice Smith", a!.Value));
+    }
+
+    // ── XLSX core properties ──────────────────────────────────────────────────────
+
+    [Fact]
+    public void StripFileMetadata_XlsxWithCreator_ExtractedMetadataContainsCreator()
+    {
+        var input = TestHelpers.CreateXlsx(creator: "Attacker Name");
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.Contains("creator", result.ExtractedMetadata);
+        Assert.Contains("Attacker Name", result.ExtractedMetadata);
+    }
+
+    [Fact]
+    public void StripFileMetadata_XlsxWithCreator_RemovedEntryCountIsGreaterThanZero()
+    {
+        var input = TestHelpers.CreateXlsx(creator: "Attacker Name");
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.True(result.RemovedEntryCount > 0);
+    }
+
+    // ── PPTX core properties ──────────────────────────────────────────────────────
+
+    [Fact]
+    public void StripFileMetadata_PptxWithCreator_ExtractedMetadataContainsCreator()
+    {
+        var input = TestHelpers.CreatePptx(creator: "Attacker Name");
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.Contains("creator", result.ExtractedMetadata);
+        Assert.Contains("Attacker Name", result.ExtractedMetadata);
+    }
+
+    [Fact]
+    public void StripFileMetadata_PptxWithCreator_RemovedEntryCountIsGreaterThanZero()
+    {
+        var input = TestHelpers.CreatePptx(creator: "Attacker Name");
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.True(result.RemovedEntryCount > 0);
     }
 }

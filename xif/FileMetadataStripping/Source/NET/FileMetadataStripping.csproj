@@ -11,6 +11,7 @@
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <LangVersion>10</LangVersion>
     <Nullable>enable</Nullable>
+    <ExcludeRestorePackageImports>true</ExcludeRestorePackageImports>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <OutputPath>bin\</OutputPath>
@@ -58,12 +59,58 @@
     <Reference Include="System.Xml.Linq">
       <Name>System.Xml.Linq</Name>
     </Reference>
-    <PackageReference Include="DocumentFormat.OpenXml" Version="3.5.1" />
-    <PackageReference Include="Magick.NET-Q8-AnyCPU" Version="14.15.0" />
-    <PackageReference Include="PDFsharp" Version="1.50.5147" />
-    <PackageReference Include="System.IO.Packaging" Version="8.0.1" />
-    <PackageReference Include="System.Text.Json" Version="8.0.5" />
-    <PackageReference Include="TagLibSharp" Version="2.3.0" />
+    <Reference Include="System.IO.Compression">
+      <Name>System.IO.Compression</Name>
+    </Reference>
+    <Reference Include="DocumentFormat.OpenXml">
+      <HintPath>bin\DocumentFormat.OpenXml.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="DocumentFormat.OpenXml.Framework">
+      <HintPath>bin\DocumentFormat.OpenXml.Framework.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Magick.NET-Q8-AnyCPU">
+      <HintPath>bin\Magick.NET-Q8-AnyCPU.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Magick.NET.Core">
+      <HintPath>bin\Magick.NET.Core.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="PdfSharp">
+      <HintPath>bin\PdfSharp.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="System.IO.Packaging">
+      <HintPath>bin\System.IO.Packaging.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="WindowsBase" />
+    <Reference Include="System.Text.Json">
+      <HintPath>bin\System.Text.Json.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="System.Memory">
+      <HintPath>bin\System.Memory.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="System.Buffers">
+      <HintPath>bin\System.Buffers.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="System.Runtime.CompilerServices.Unsafe">
+      <HintPath>bin\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="System.Text.Encodings.Web">
+      <HintPath>bin\System.Text.Encodings.Web.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="TagLibSharp">
+      <HintPath>bin\TagLibSharp.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="OutSystems.RuntimeCommon">
       <Name>OutSystems.RuntimeCommon</Name>
       <HintPath>bin\OutSystems.RuntimeCommon.dll</HintPath>
