@@ -66,7 +66,7 @@ distinguish passthrough files from clean processed files.
 SUPPORTED FILE FORMATS
 -----------------------
 
-Images (JPEG, PNG, GIF, BMP, TIFF, WebP, TGA, and 100+ more)
+Images (JPEG, PNG, GIF, TIFF, WebP, TGA, and 100+ more)
 Strips: EXIF, IPTC, XMP, ICC profiles, image comments.
 Animated GIFs and multi-frame TIFFs are fully supported: metadata
 is stripped from every frame and all frames are preserved in the output.
@@ -115,8 +115,10 @@ Strips: ID3 tags, Vorbis comments, all metadata atoms.
 Video (MP4, MOV, AVI, MKV, WebM, WMV)
 Strips: all metadata atoms and tags.
 
-Plain text, CSV, JSON, XML, and unrecognised formats
+Plain text, BMP, CSV, JSON, XML, and unrecognised formats
 Passthrough - file returned unchanged, IsPassthrough = true.
+BMP has no standard metadata containers (no EXIF, IPTC, or XMP support)
+and is always returned unchanged regardless of content.
 
 
 NOTES

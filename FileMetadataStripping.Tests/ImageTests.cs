@@ -367,6 +367,36 @@ public class ImageTests
     }
 
     [Fact]
+    public void StripFileMetadata_TiffWithComment_CommentIsExtracted()
+    {
+        var input = TestHelpers.CreateTiff(img => img.Comment = "TIFF comment payload");
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.Contains("comment", result.ExtractedMetadata);
+        Assert.Contains("TIFF comment payload", result.ExtractedMetadata);
+    }
+
+    [Fact]
+    public void StripFileMetadata_TiffWithComment_CommentIsRemovedFromCleanFile()
+    {
+        var input = TestHelpers.CreateTiff(img => img.Comment = "TIFF comment payload");
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        using var decoded = new MagickImage(result.CleanFile);
+        Assert.True(string.IsNullOrEmpty(decoded.Comment));
+    }
+
+    // Note: TIFF native EXIF IFD extraction cannot be exercised with synthetic test data.
+    // Magick.NET's TIFF encoder silently drops ExifProfile AND ignores SetAttribute("EXIF:*")
+    // during write, so no programmatically-created TIFF will carry EXIF:* attributes.
+    // Real-world camera TIFFs carry EXIF via the ExifIFD sub-directory (tag 34665), which
+    // Magick.NET surfaces through GetExifProfile() — handled by the primary extraction path.
+    // The EXIF:* attribute fallback in ExtractImageMetadata covers the residual case where
+    // GetExifProfile() returns null on a TIFF that has attribute-level EXIF tags.
+
+    [Fact]
     public void StripFileMetadata_WebPInput_OutputIsWebP()
     {
         var result = _sut.StripFileMetadata(TestHelpers.CreateWebP(), false);

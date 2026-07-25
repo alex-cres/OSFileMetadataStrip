@@ -29,7 +29,7 @@ Calling `StripFileMetadata` at the earliest point in any flow that accepts file 
 
 |----------|---------|-------------------|
 
-| Images | JPEG, PNG, GIF, BMP, TIFF, WebP, TGA, and 100+ more | EXIF (camera data, GPS, descriptions), IPTC (captions, keywords), XMP, ICC profiles, comments |
+| Images | JPEG, PNG, GIF, TIFF, WebP, TGA, and 100+ more | EXIF (camera data, GPS, descriptions), IPTC (captions, keywords), XMP, ICC profiles, comments |
 
 | Audio | MP3, FLAC, OGG, WAV, M4A, WMA, and more | ID3 tags, Vorbis comments, metadata atoms (title, artist, album, comment, genre…) |
 
@@ -41,7 +41,7 @@ Calling `StripFileMetadata` at the earliest point in any flow that accepts file 
 
 | ODF documents | ODT, ODS, ODP | dc:creator, dc:title, dc:description, dc:subject, meta:initial-creator, meta:generator, meta:editing-cycles, meta:editing-duration, and all meta:user-defined properties |
 
-| Plain text / other | TXT, CSV, MD, JSON, XML, HTML, and any unrecognised format | Passthrough — returned unchanged with `IsPassthrough = true` |
+| BMP / Plain text / other | BMP, TXT, CSV, MD, JSON, XML, HTML, and any unrecognised format | Passthrough — returned unchanged with `IsPassthrough = true` |
 
 ---
 

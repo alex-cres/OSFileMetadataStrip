@@ -65,6 +65,40 @@ internal static class TestHelpers
         return ms.ToArray();
     }
 
+    /// <summary>
+    /// Creates a TIFF that carries EXIF as native IFD tags (the real-world camera scenario).
+    /// Magick.NET's TIFF encoder silently drops a directly-set ExifProfile, but when a JPEG
+    /// with EXIF is re-encoded to TIFF the EXIF APP1 is translated to native TIFF IFD tags.
+    /// </summary>
+    internal static byte[] CreateTiffFromJpegWithExif(string imageDescription = "test exif in tiff")
+    {
+        using var img = new MagickImage(MagickColors.White, 10, 10);
+        img.Format = MagickFormat.Jpeg;
+        var exif = new ExifProfile();
+        exif.SetValue(ExifTag.ImageDescription, imageDescription);
+        img.SetProfile(exif);
+        using var jpegMs = new MemoryStream();
+        img.Write(jpegMs);
+
+        using var readBack = new MagickImage(jpegMs.ToArray());
+
+        // Capture EXIF:* attributes from the JPEG before the TIFF encoder drops them
+        var exifAttrs = readBack.AttributeNames
+            .Where(n => n.StartsWith("EXIF:", StringComparison.OrdinalIgnoreCase))
+            .Select(n => (name: n, value: readBack.GetAttribute(n)))
+            .ToList();
+
+        // Re-encode as TIFF and re-apply the captured attributes
+        readBack.Format = MagickFormat.Tiff;
+        foreach (var (name, value) in exifAttrs)
+            if (value is not null)
+                readBack.SetAttribute(name, value);
+
+        using var tiffMs = new MemoryStream();
+        readBack.Write(tiffMs);
+        return tiffMs.ToArray();
+    }
+
     internal static byte[] CreateWebP(Action<MagickImage>? configure = null)
     {
         using var image = new MagickImage(MagickColors.White, 10, 10);

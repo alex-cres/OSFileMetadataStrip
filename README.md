@@ -65,6 +65,8 @@ Detects the file type from its binary signature, then routes to a format-specifi
 
 > **Note:** If a PDF or OOXML file is encrypted, password-protected, or corrupted and cannot be opened, the original file is returned unchanged (`IsPassthrough = false`, `RemovedEntryCount = 0`) and `ExtractedMetadata` contains a `processingError` key. No exception is raised.
 
+> **TIFF and EXIF:** TIFF stores EXIF as native IFD tags (not as an APP1 segment like JPEG). `image.Strip()` removes all metadata regardless of how it is embedded. For `ExtractedMetadata` reporting, EXIF is read via `GetExifProfile()`, which works for real-world camera TIFFs. If a TIFF was produced by a tool that dropped the EXIF during encoding (including Magick.NET itself), `RemovedEntryCount` will reflect only the metadata that was actually present — XMP and Comment fields are always captured when present.
+
 ```
 Upload → StripFileMetadata → Clean BinaryData + ExtractedMetadata → AI API / Storage
 ```

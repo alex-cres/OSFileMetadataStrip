@@ -74,8 +74,8 @@ Directory.CreateDirectory(outputDir);
 {
     using var img = new MagickImage(MagickColors.Tomato, 400, 300);
     img.Format = MagickFormat.Bmp;
-    img.Write(Path.Combine(outputDir, "sample-with-metadata.bmp"));
-    Console.WriteLine("✓ sample-with-metadata.bmp  (no standard metadata — tests passthrough-safe processing)");
+    img.Write(Path.Combine(outputDir, "sample-passthrough.bmp"));
+    Console.WriteLine("✓ sample-passthrough.bmp    (no metadata containers — BMP is always returned as passthrough)");
 }
 
 // ── TIFF ──────────────────────────────────────────────────────────────────────
