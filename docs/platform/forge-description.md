@@ -53,6 +53,8 @@ Every format listed below has an explicit xUnit test in the component's test pro
 
 | PDF | PDF, AI (Adobe Illustrator) | Title, Author, Subject, Keywords, Creator, Producer, XMP catalog stream, annotation Author fields |
 
+| RTF | RTF | `\author`, `\title`, `\subject`, `\keywords`, `\comment`, `\operator`, `\company`, `\doccomm`, `\category`, `\hlinkbase`, `\manager` control-word groups in `\info`. Numeric control words preserved. |
+
 | Office documents | DOCX, XLSX, PPTX | Core / app / custom properties + `docProps/thumbnail.*`. Body author stripping (tracked changes, comment authors, Excel 365 xl/persons entries) requires `StripBodyAuthors = True`. |
 
 | Legacy binary Office | DOC, DOT, XLS, XLT, PPT, POT, PPS (Word / Excel / PowerPoint 97 – 2003) | `\x05SummaryInformation` stream (Title, Subject, Author, Keywords, Comments, Template, Last-Saved-By, Application) and `\x05DocumentSummaryInformation` stream (Category, Manager, Company, ContentStatus, Language, custom user-defined properties). Detected via the CFBF 8-byte magic; the container is consolidated after deletion so freed sectors are dropped from the output. |
@@ -63,7 +65,7 @@ Every format listed below has an explicit xUnit test in the component's test pro
 
 | ORA (Open Raster) | ORA | `name` / `description` attributes on every element in `stack.xml` |
 
-| Audio | MP3, WAV, FLAC, OGG (Vorbis / Opus), M4A, M4B, WMA | ID3 tags, Vorbis / Opus comments, RIFF INFO chunks, iTunes MP4 atoms, ASF header extension objects |
+| Audio | MP3, WAV, FLAC, OGG (Vorbis / Opus), M4A, M4B, WMA, AIFF / AIFC, APE, WavPack, MPC | ID3 tags, Vorbis / Opus comments, RIFF INFO chunks, iTunes MP4 atoms, ASF header extension objects, AIFF ID3 chunks, APE tags |
 
 | Video | MP4, MKV, AVI, MOV, WebM, WMV, M4V, 3GP, 3G2 | Metadata atoms / tags |
 

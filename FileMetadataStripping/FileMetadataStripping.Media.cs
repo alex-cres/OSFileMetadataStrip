@@ -103,6 +103,21 @@ public partial class FileMetadataStripping
             return ".mkv"; // Matroska / WebM
         if (rawFile.Length >= 4 && rawFile[0] == 0x30 && rawFile[1] == 0x26 && rawFile[2] == 0xB2 && rawFile[3] == 0x75)
             return ".wma"; // WMA / ASF
+        if (rawFile.Length >= 12
+            && rawFile[0] == 0x46 && rawFile[1] == 0x4F && rawFile[2] == 0x52 && rawFile[3] == 0x4D
+            && rawFile[8] == 0x41 && rawFile[9] == 0x49 && rawFile[10] == 0x46
+            && (rawFile[11] == 0x46 || rawFile[11] == 0x43))
+            return ".aiff"; // AIFF / AIFC
+        if (rawFile.Length >= 4 && rawFile[0] == 0x4D && rawFile[1] == 0x41 && rawFile[2] == 0x43 && rawFile[3] == 0x20)
+            return ".ape";  // Monkey's Audio
+        if (rawFile.Length >= 4 && rawFile[0] == 0x77 && rawFile[1] == 0x76 && rawFile[2] == 0x70 && rawFile[3] == 0x6B)
+            return ".wv";   // WavPack
+        if (rawFile.Length >= 4 && rawFile[0] == 0x4D && rawFile[1] == 0x50 && rawFile[2] == 0x43 && rawFile[3] == 0x4B)
+            return ".mpc";  // Musepack SV8
+        if (rawFile.Length >= 4
+            && rawFile[0] == 0x4D && rawFile[1] == 0x50 && rawFile[2] == 0x2B
+            && (rawFile[3] & 0x0F) == 0x07)
+            return ".mpc";  // Musepack SV7
         return ".mp3"; // fallback
     }
 

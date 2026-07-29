@@ -53,6 +53,8 @@ Every format listed below has an explicit xUnit test in `FileMetadataStripping.T
 
 | PDF | PDF, AI (Adobe Illustrator — PDF-based) | Title, Author, Subject, Keywords, Creator, Producer, XMP catalog metadata stream, and annotation Author fields (comment, sticky-note, markup annotations) |
 
+| RTF | RTF (Rich Text Format) | `\author`, `\title`, `\subject`, `\keywords`, `\comment`, `\operator`, `\company`, `\doccomm`, `\category`, `\hlinkbase`, `\manager` control-word groups inside the `\info` group. Numeric control words (`\version`, `\vern`, `\nofpages`, revision timestamps, edit-minute counters) are preserved so the document still renders. |
+
 | Office documents | DOCX, XLSX, PPTX | Core properties (Creator, LastModifiedBy, Created/Modified dates, Title, Subject, Description, Keywords, Category, ContentStatus, Revision, LastPrinted, Identifier, Version), application properties (Application, Company, Manager, AppVersion, Template, HyperlinkBase), custom property key/value pairs, and the embedded page-preview thumbnail (`docProps/thumbnail.*`). Body author stripping (tracked changes, comment authors, Excel 365 xl/persons entries) requires `StripBodyAuthors = True`. |
 
 | Legacy binary Office | DOC, DOT (Word 97 – 2003), XLS, XLT (Excel 97 – 2003), PPT, POT, PPS (PowerPoint 97 – 2003) | Detected via the 8-byte CFBF magic `D0 CF 11 E0 A1 B1 1A E1`. Deletes both OLE property-set streams: `\x05SummaryInformation` (Title, Subject, Author, Keywords, Comments, Template, Last-Saved-By, Application, revision and edit-time counters, dates) and `\x05DocumentSummaryInformation` (Category, Manager, Company, ContentStatus, Language, and all user-defined custom properties). The CFBF container is consolidated after deletion so the freed sectors are dropped from the output — the raw property values do not survive in unallocated space. |
@@ -63,7 +65,7 @@ Every format listed below has an explicit xUnit test in `FileMetadataStripping.T
 
 | ORA (Open Raster) | ORA | `name` and `description` attributes on every element in `stack.xml` (image, stack, layer, mask, text) — structural attributes preserved so the image still renders |
 
-| Audio | MP3, WAV, FLAC, OGG (Vorbis / Opus), M4A, M4B, WMA | ID3 tags, Vorbis / Opus comments, RIFF INFO chunks, iTunes MP4 atoms, ASF header extension objects (title, artist, album, comment, …) |
+| Audio | MP3, WAV, FLAC, OGG (Vorbis / Opus), M4A, M4B, WMA, AIFF / AIFC, APE (Monkey's Audio), WavPack (.wv), MPC (Musepack SV7 / SV8) | ID3 tags, Vorbis / Opus comments, RIFF INFO chunks, iTunes MP4 atoms, ASF header extension objects (title, artist, album, comment, …), AIFF ID3 chunks, APE tags |
 
 | Video | MP4, MKV, AVI, MOV, WebM, WMV, M4V, 3GP, 3G2 | Metadata atoms/tags (title, comment, encoder, …) |
 

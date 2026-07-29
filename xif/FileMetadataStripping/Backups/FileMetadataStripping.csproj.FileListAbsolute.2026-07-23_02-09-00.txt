@@ -1,2 +1,0 @@
-c:\Users\Alexandre\Documents\GitHub\OSComponents\OSFileMetadataStrip\xif\FileMetadataStripping\Source\NET\obj\Release\FileMetadataStripping.csproj.AssemblyReference.cache
-c:\Users\Alexandre\Documents\GitHub\OSComponents\OSFileMetadataStrip\xif\FileMetadataStripping\Source\NET\obj\Release\FileMetadataStripping.csproj.CoreCompileInputs.cache

@@ -460,4 +460,82 @@ internal static partial class TestHelpers
         public void CloseStream(Stream stream) { }
     }
 
+    // ── AIFF / APE / WavPack / MPC synthetic magic-byte fixtures ──────────────
+    //
+    // These formats are handled by TagLibSharp but our test suite only needs
+    // the detection contract: the file is routed to the media pipeline
+    // (IsPassthrough = false) and the strip path returns without throwing.
+    // TagLibSharp may reject the synthetic bytes as "unsupported / corrupt",
+    // which our StripMediaMetadata catches and reports as a processingError
+    // audit note — still a correct, non-throwing outcome.
+
+    internal static byte[] CreateAiff()
+    {
+        // FORM + big-endian size + AIFF form-type. Enough bytes for TagLibSharp
+        // to attempt parsing without an immediate index-out-of-range.
+        var buf = new byte[64];
+        buf[0] = 0x46; buf[1] = 0x4F; buf[2] = 0x52; buf[3] = 0x4D;  // "FORM"
+        // Bytes 4-7: FORM chunk size (big-endian) — 56 (total 64 minus 8-byte header).
+        buf[4] = 0x00; buf[5] = 0x00; buf[6] = 0x00; buf[7] = 0x38;
+        buf[8] = 0x41; buf[9] = 0x49; buf[10] = 0x46; buf[11] = 0x46; // "AIFF"
+        return buf;
+    }
+
+    internal static byte[] CreateAifc()
+    {
+        var buf = CreateAiff();
+        buf[11] = 0x43; // switch trailing "F" → "C" for AIFC (compressed AIFF).
+        return buf;
+    }
+
+    internal static byte[] CreateApe()
+    {
+        var buf = new byte[64];
+        buf[0] = 0x4D; buf[1] = 0x41; buf[2] = 0x43; buf[3] = 0x20; // "MAC "
+        return buf;
+    }
+
+    internal static byte[] CreateWavPack()
+    {
+        var buf = new byte[64];
+        buf[0] = 0x77; buf[1] = 0x76; buf[2] = 0x70; buf[3] = 0x6B; // "wvpk"
+        return buf;
+    }
+
+    internal static byte[] CreateMpcSv8()
+    {
+        var buf = new byte[64];
+        buf[0] = 0x4D; buf[1] = 0x50; buf[2] = 0x43; buf[3] = 0x4B; // "MPCK"
+        return buf;
+    }
+
+    internal static byte[] CreateMpcSv7()
+    {
+        var buf = new byte[64];
+        buf[0] = 0x4D; buf[1] = 0x50; buf[2] = 0x2B; // "MP+"
+        buf[3] = 0x17; // stream version 1 in high nibble, SV7 marker (0x07) in low nibble.
+        return buf;
+    }
+
+    // ── HTML passthrough fixtures ─────────────────────────────────────────────
+    //
+    // HTML is intentionally routed to Passthrough — see docs/format-coverage.md
+    // for the reasoning (it's a content format, meta tags are functional, and
+    // selective meta-name stripping while leaving <script> gives a false sense
+    // of security). These fixtures lock in the contract so any future change
+    // that reclassifies HTML as an actively-stripped format has to update the
+    // tests deliberately.
+
+    internal static byte[] CreateHtml(string? metaAuthor = null, string? title = null)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.Append("<!DOCTYPE html><html><head>");
+        sb.Append("<meta charset=\"utf-8\">");
+        if (!string.IsNullOrEmpty(metaAuthor))
+            sb.Append("<meta name=\"author\" content=\"").Append(metaAuthor).Append("\">");
+        if (!string.IsNullOrEmpty(title))
+            sb.Append("<title>").Append(title).Append("</title>");
+        sb.Append("</head><body><p>Hello world.</p></body></html>");
+        return System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+    }
 }

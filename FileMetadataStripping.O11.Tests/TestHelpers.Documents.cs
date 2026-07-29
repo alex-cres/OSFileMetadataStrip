@@ -188,6 +188,7 @@ internal static partial class TestHelpers
         ms.Write(rawDocx, 0, rawDocx.Length);
         ms.Position = 0;
 
+        // Build a small JPEG on the fly if none was provided.
         thumbnailJpegBytes ??= CreateJpeg();
 
         using (var package = Package.Open(ms, FileMode.Open, FileAccess.ReadWrite))
@@ -349,6 +350,7 @@ internal static partial class TestHelpers
         using (var zip = new System.IO.Compression.ZipArchive(
             ms, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
         {
+            // mimetype must be first and uncompressed per ODF spec
             var mimetypeEntry = zip.CreateEntry("mimetype",
                 System.IO.Compression.CompressionLevel.NoCompression);
             using (var s = mimetypeEntry.Open())
@@ -438,7 +440,8 @@ internal static partial class TestHelpers
         return CreateOra("root", "Background");
     }
 
-    /// <summary>Creates an ORA archive with caller-specified stack and layer names.</summary>
+    /// <summary>Creates an ORA archive with caller-specified stack and layer names,
+    /// so tests can verify those attributes are blanked in the output.</summary>
     internal static byte[] CreateOra(string stackName, string layerName)
     {
         using var ms = new MemoryStream();
@@ -467,7 +470,8 @@ internal static partial class TestHelpers
     }
 
     /// <summary>Creates an EPUB ZIP with mimetype = application/epub+zip.
-    /// Contains only container.xml — no OPF — so the strip path exits cleanly with 0 removals.</summary>
+    /// Contains only the container.xml — no OPF — so the strip path finds nothing
+    /// to remove but exits cleanly.</summary>
     internal static byte[] CreateEpub()
     {
         using var ms = new MemoryStream();
@@ -495,7 +499,9 @@ internal static partial class TestHelpers
         return ms.ToArray();
     }
 
-    /// <summary>Creates an EPUB with a full OPF package document carrying Dublin Core metadata.</summary>
+    /// <summary>Creates an EPUB with a full OPF package document carrying Dublin Core
+    /// metadata. Used to verify the OPF strip path clears creator/title/description
+    /// while preserving the rest of the OPF structure.</summary>
     internal static byte[] CreateEpubWithOpf(string creator, string title, string? description = null)
     {
         using var ms = new MemoryStream();
@@ -556,6 +562,7 @@ internal static partial class TestHelpers
         using (var root = OpenMcdf.RootStorage.Create(
                    ms, OpenMcdf.Version.V3, OpenMcdf.StorageModeFlags.LeaveOpen))
         {
+            // SummaryInformation
             var summary = new OpenMcdf.Ole.OlePropertiesContainer(
                 1252, OpenMcdf.Ole.ContainerType.SummaryInfo);
             AddCodePage(summary, 1252);
@@ -607,6 +614,8 @@ internal static partial class TestHelpers
         using (var root = OpenMcdf.RootStorage.Create(
                    ms, OpenMcdf.Version.V3, OpenMcdf.StorageModeFlags.LeaveOpen))
         {
+            // Add one arbitrary stream so the container isn't empty (empty CFBF
+            // is still valid but a body stream is closer to a real Office file).
             using var body = root.CreateStream("WordDocument");
             var placeholder = new byte[16];
             body.Write(placeholder, 0, placeholder.Length);
@@ -634,4 +643,55 @@ internal static partial class TestHelpers
         container.Add(prop);
     }
 
+    // ── RTF (Rich Text Format) test helpers ────────────────────────────────────
+
+    internal static byte[] CreateRtf(
+        string? author   = null,
+        string? title    = null,
+        string? subject  = null,
+        string? keywords = null,
+        string? company  = null,
+        string? manager  = null,
+        string? comment  = null,
+        string? doccomm  = null,
+        string? operatorName = null,
+        string? category = null,
+        string? hlinkbase    = null,
+        string  body     = "Hello world.")
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.Append(@"{\rtf1\ansi\deff0");
+        sb.Append(@"{\fonttbl{\f0\froman Times New Roman;}}");
+
+        // Only emit an \info group when at least one metadata value is set so
+        // the "clean baseline" test can start from an RTF with no \info.
+        var infoParts = new List<string>();
+        void Add(string cw, string? v)
+        {
+            if (!string.IsNullOrEmpty(v))
+                infoParts.Add("{\\" + cw + " " + v + "}");
+        }
+        Add("author",       author);
+        Add("title",        title);
+        Add("subject",      subject);
+        Add("keywords",     keywords);
+        Add("company",      company);
+        Add("manager",      manager);
+        Add("comment",      comment);
+        Add("doccomm",      doccomm);
+        Add("operator",     operatorName);
+        Add("category",     category);
+        Add("hlinkbase",    hlinkbase);
+
+        if (infoParts.Count > 0)
+        {
+            sb.Append(@"{\info");
+            foreach (var p in infoParts) sb.Append(p);
+            sb.Append('}');
+        }
+
+        sb.Append(@"\pard\f0 ").Append(body).Append(@"\par}");
+
+        return System.Text.Encoding.GetEncoding("ISO-8859-1").GetBytes(sb.ToString());
+    }
 }

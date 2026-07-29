@@ -13,7 +13,7 @@ namespace FileMetadataStripping;
 
 public partial class FileMetadataStripping : IFileMetadataStripping
 {
-    private enum FileCategory { Image, Svg, Pdf, OpenXml, LegacyOffice, Odf, Epub, Ora, Media, Passthrough }
+    private enum FileCategory { Image, Svg, Pdf, Rtf, OpenXml, LegacyOffice, Odf, Epub, Ora, Media, Passthrough }
 
     public FileMetadataResult StripFileMetadata(byte[] rawFile, bool stripBodyAuthors)
     {
@@ -22,6 +22,7 @@ public partial class FileMetadataStripping : IFileMetadataStripping
             FileCategory.Image        => StripImageMetadata(rawFile),
             FileCategory.Svg          => StripSvgMetadata(rawFile),
             FileCategory.Pdf          => StripPdfMetadata(rawFile),
+            FileCategory.Rtf          => StripRtfMetadata(rawFile),
             FileCategory.OpenXml      => StripOpenXmlMetadata(rawFile, stripBodyAuthors),
             FileCategory.LegacyOffice => StripCfbfMetadata(rawFile),
             FileCategory.Odf          => StripOdfMetadata(rawFile),
@@ -40,6 +41,19 @@ public partial class FileMetadataStripping : IFileMetadataStripping
             && rawFile[0] == 0x25 && rawFile[1] == 0x50
             && rawFile[2] == 0x44 && rawFile[3] == 0x46)
             return FileCategory.Pdf;
+
+        // RTF (Rich Text Format): {\rtf1 (6 ASCII bytes). The '{' byte alone is common
+        // in binary data, so a strict 6-byte prefix check is required to avoid false
+        // positives. RTF is 7-bit ASCII with \'HH hex escapes for non-ASCII, so a
+        // regex-based scrubber over the file text is sufficient — no NuGet needed.
+        if (rawFile.Length >= 6
+            && rawFile[0] == 0x7B  // '{'
+            && rawFile[1] == 0x5C  // '\\'
+            && rawFile[2] == 0x72  // 'r'
+            && rawFile[3] == 0x74  // 't'
+            && rawFile[4] == 0x66  // 'f'
+            && rawFile[5] == 0x31) // '1'
+            return FileCategory.Rtf;
 
         // Legacy binary Office (CFBF / OLE Compound Document): D0 CF 11 E0 A1 B1 1A E1.
         // Covers Word 97–2003 (.doc / .dot), Excel 97–2003 (.xls / .xlt), PowerPoint 97–2003
@@ -106,6 +120,35 @@ public partial class FileMetadataStripping : IFileMetadataStripping
             return FileCategory.Media;
         // WMA / ASF
         if (rawFile.Length >= 4 && rawFile[0] == 0x30 && rawFile[1] == 0x26 && rawFile[2] == 0xB2 && rawFile[3] == 0x75)
+            return FileCategory.Media;
+
+        // AIFF / AIFC (Audio Interchange File Format): FORM at bytes 0–3, AIFF or AIFC at bytes 8–11.
+        // Big-endian sibling of RIFF WAV; detection follows the same structure as the WAV/AVI check above.
+        if (rawFile.Length >= 12
+            && rawFile[0] == 0x46 && rawFile[1] == 0x4F && rawFile[2] == 0x52 && rawFile[3] == 0x4D  // "FORM"
+            && rawFile[8] == 0x41 && rawFile[9] == 0x49 && rawFile[10] == 0x46                        // "AIF"
+            && (rawFile[11] == 0x46 || rawFile[11] == 0x43))                                         // "F" or "C"
+            return FileCategory.Media;
+
+        // APE (Monkey's Audio): "MAC " (4 ASCII bytes, trailing space).
+        if (rawFile.Length >= 4 && rawFile[0] == 0x4D && rawFile[1] == 0x41 && rawFile[2] == 0x43 && rawFile[3] == 0x20)
+            return FileCategory.Media;
+
+        // WavPack (.wv): "wvpk" magic bytes.
+        if (rawFile.Length >= 4 && rawFile[0] == 0x77 && rawFile[1] == 0x76 && rawFile[2] == 0x70 && rawFile[3] == 0x6B)
+            return FileCategory.Media;
+
+        // MPC (Musepack): SV7 stream "MP+" (3 bytes) or SV8 stream "MPCK" (4 bytes).
+        // SV7 files start with "MP+" followed by a stream-version byte, so we only check the 3-byte prefix
+        // AND require the stream-version byte at offset 3 to have its high bit set (0x07 or 0x17 etc.
+        // — stream-version 7 is encoded as (version << 4) | 0x07). A pure "MP+\0" prefix without the
+        // high-nibble version signature is rejected to avoid false positives on arbitrary binary data.
+        if (rawFile.Length >= 4
+            && rawFile[0] == 0x4D && rawFile[1] == 0x50 && rawFile[2] == 0x43 && rawFile[3] == 0x4B)  // "MPCK" (SV8)
+            return FileCategory.Media;
+        if (rawFile.Length >= 4
+            && rawFile[0] == 0x4D && rawFile[1] == 0x50 && rawFile[2] == 0x2B                        // "MP+"
+            && (rawFile[3] & 0x0F) == 0x07)                                                          // SV7 marker in low nibble
             return FileCategory.Media;
 
         // ── Image format fallbacks: formats whose magic bytes are not reliably detected

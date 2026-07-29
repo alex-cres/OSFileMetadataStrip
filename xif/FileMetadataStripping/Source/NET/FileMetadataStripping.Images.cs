@@ -393,6 +393,25 @@ namespace OutSystems.NssFileMetadataStripping {
 			return false;
 		}
 
+		/// <summary>Detects DIB (BMP without the 14-byte BITMAPFILEHEADER) by validating the
+		/// BITMAPINFOHEADER: header size at bytes 0–3 is one of {40, 52, 56, 108, 124}, planes=1
+		/// at bytes 12–13, and bit-count at bytes 14–15 is a valid depth (1/4/8/16/24/32).</summary>
+		private static bool IsDibFile(byte[] rawFile)
+		{
+			if (rawFile.Length < 40) return false;
+			uint headerSize = (uint)(rawFile[0]
+								  | (rawFile[1] << 8)
+								  | (rawFile[2] << 16)
+								  | (rawFile[3] << 24));
+			if (headerSize != 40  && headerSize != 52  && headerSize != 56
+			 && headerSize != 108 && headerSize != 124)
+				return false;
+			if (rawFile[12] != 0x01 || rawFile[13] != 0x00) return false;
+			ushort bitCount = (ushort)(rawFile[14] | (rawFile[15] << 8));
+			return bitCount == 1  || bitCount == 4  || bitCount == 8
+				|| bitCount == 16 || bitCount == 24 || bitCount == 32;
+		}
+
 	} // CssFileMetadataStripping
 
 } // OutSystems.NssFileMetadataStripping

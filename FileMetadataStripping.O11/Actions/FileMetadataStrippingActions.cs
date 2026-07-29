@@ -16,7 +16,7 @@ namespace OutSystems.NssFileMetadataStripping;
 
 public partial class CssFileMetadataStripping : IssFileMetadataStripping
 {
-    private enum FileCategory { Image, Svg, Pdf, OpenXml, LegacyOffice, Odf, Epub, Ora, Media, Passthrough }
+    private enum FileCategory { Image, Svg, Pdf, Rtf, OpenXml, LegacyOffice, Odf, Epub, Ora, Media, Passthrough }
 
     public void MssStripFileMetadata(byte[] ssRawFile, bool ssStripBodyAuthors, out RecFileMetadataResult ssStripFileMetadata)
     {
@@ -25,6 +25,7 @@ public partial class CssFileMetadataStripping : IssFileMetadataStripping
             FileCategory.Image        => StripImageMetadata(ssRawFile),
             FileCategory.Svg          => StripSvgMetadata(ssRawFile),
             FileCategory.Pdf          => StripPdfMetadata(ssRawFile),
+            FileCategory.Rtf          => StripRtfMetadata(ssRawFile),
             FileCategory.OpenXml      => StripOpenXmlMetadata(ssRawFile, ssStripBodyAuthors),
             FileCategory.LegacyOffice => StripCfbfMetadata(ssRawFile),
             FileCategory.Odf          => StripOdfMetadata(ssRawFile),
@@ -43,6 +44,19 @@ public partial class CssFileMetadataStripping : IssFileMetadataStripping
             && rawFile[0] == 0x25 && rawFile[1] == 0x50
             && rawFile[2] == 0x44 && rawFile[3] == 0x46)
             return FileCategory.Pdf;
+
+        // RTF (Rich Text Format): {\rtf1 (6 ASCII bytes). The '{' byte alone is common
+        // in binary data, so a strict 6-byte prefix check is required to avoid false
+        // positives. RTF is 7-bit ASCII with \'HH hex escapes for non-ASCII, so a
+        // regex-based scrubber over the file text is sufficient — no NuGet needed.
+        if (rawFile.Length >= 6
+            && rawFile[0] == 0x7B  // '{'
+            && rawFile[1] == 0x5C  // '\\'
+            && rawFile[2] == 0x72  // 'r'
+            && rawFile[3] == 0x74  // 't'
+            && rawFile[4] == 0x66  // 'f'
+            && rawFile[5] == 0x31) // '1'
+            return FileCategory.Rtf;
 
         // Legacy binary Office (CFBF / OLE Compound Document): D0 CF 11 E0 A1 B1 1A E1.
         // Covers Word 97–2003 (.doc / .dot), Excel 97–2003 (.xls / .xlt), PowerPoint 97–2003
@@ -104,6 +118,30 @@ public partial class CssFileMetadataStripping : IssFileMetadataStripping
             return FileCategory.Media; // MKV / WebM
         if (rawFile.Length >= 4 && rawFile[0] == 0x30 && rawFile[1] == 0x26 && rawFile[2] == 0xB2 && rawFile[3] == 0x75)
             return FileCategory.Media; // WMA / ASF
+
+        // AIFF / AIFC (Audio Interchange File Format): FORM at bytes 0–3, AIFF or AIFC at bytes 8–11.
+        // Big-endian sibling of RIFF WAV.
+        if (rawFile.Length >= 12
+            && rawFile[0] == 0x46 && rawFile[1] == 0x4F && rawFile[2] == 0x52 && rawFile[3] == 0x4D
+            && rawFile[8] == 0x41 && rawFile[9] == 0x49 && rawFile[10] == 0x46
+            && (rawFile[11] == 0x46 || rawFile[11] == 0x43))
+            return FileCategory.Media; // AIFF / AIFC
+
+        // APE (Monkey's Audio): "MAC " (4 ASCII bytes, trailing space).
+        if (rawFile.Length >= 4 && rawFile[0] == 0x4D && rawFile[1] == 0x41 && rawFile[2] == 0x43 && rawFile[3] == 0x20)
+            return FileCategory.Media; // APE
+
+        // WavPack (.wv): "wvpk" magic bytes.
+        if (rawFile.Length >= 4 && rawFile[0] == 0x77 && rawFile[1] == 0x76 && rawFile[2] == 0x70 && rawFile[3] == 0x6B)
+            return FileCategory.Media; // WavPack
+
+        // MPC (Musepack): SV8 "MPCK" or SV7 "MP+" + version byte with 0x07 in the low nibble.
+        if (rawFile.Length >= 4 && rawFile[0] == 0x4D && rawFile[1] == 0x50 && rawFile[2] == 0x43 && rawFile[3] == 0x4B)
+            return FileCategory.Media; // MPC SV8
+        if (rawFile.Length >= 4
+            && rawFile[0] == 0x4D && rawFile[1] == 0x50 && rawFile[2] == 0x2B
+            && (rawFile[3] & 0x0F) == 0x07)
+            return FileCategory.Media; // MPC SV7
 
         // ── Image format fallbacks: formats not reliably detected by MagickImageInfo ──────
 

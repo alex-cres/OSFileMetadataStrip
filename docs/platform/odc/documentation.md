@@ -101,6 +101,27 @@ from all comment, sticky-note, and markup annotations. Distinct
 annotation author names are recorded in ExtractedMetadata under the
 key annotationAuthors.
 
+RTF (Rich Text Format)
+Detected via the 6-byte prefix {\rtf1. The file is scanned as
+ISO-8859-1 text (RTF is 7-bit ASCII on disk with \'HH hex escapes for
+non-ASCII, so Latin-1 preserves every byte 1:1) and the string-bearing
+control-word groups inside the \info group are blanked. The control
+word is retained with an empty payload so the RTF structure remains
+well-formed for readers.
+
+Content-bearing control words targeted: \author, \title, \subject,
+\keywords, \comment (private, invisible), \operator, \company,
+\doccomm (visible "Comments" in Word Properties), \category,
+\hlinkbase (hyperlink base URL), \manager. Numeric control words
+(\version, \vern, \nofpages, revision timestamps, edit-minute counters)
+are preserved because they are not user-controlled prompt-injection
+vectors and removing them can break some readers.
+
+Removed values are recorded in ExtractedMetadata under the control-word
+name (author, title, subject, ...). If the same control word appears
+more than once (a rare pattern in annotation trails), every occurrence
+is captured as a JSON array.
+
 Office Open XML (DOCX, XLSX, PPTX)
 Always strips: core properties (Creator, LastModifiedBy, Created,
 Modified, Title, Subject, Description, Keywords, Category, Revision,
@@ -230,10 +251,15 @@ InstitutionName) is out of scope for this release.
 MPO and MNG (multi-image containers)
 Every embedded image / frame is stripped and preserved.
 
-Audio (MP3, WAV, FLAC, OGG Vorbis / Opus, M4A, M4B, WMA)
+Audio (MP3, WAV, FLAC, OGG Vorbis / Opus, M4A, M4B, WMA, AIFF / AIFC,
+APE, WavPack, MPC)
 Strips: ID3 tags, Vorbis / Opus comments, RIFF INFO chunks, iTunes
-MP4 atoms, and ASF header extension objects (title, artist, album,
-comment, and so on).
+MP4 atoms, ASF header extension objects (title, artist, album,
+comment, and so on), AIFF ID3 chunks, and APE tags. AIFF, APE
+(Monkey's Audio), WavPack (.wv) and MPC (Musepack SV7 and SV8) are
+detected by their respective magic bytes (FORM+AIFF/AIFC, "MAC ",
+"wvpk", "MPCK" or "MP+"+SV7-marker) and routed to the same
+TagLibSharp-backed strip pipeline as the other audio formats.
 
 Video (MP4, MKV, AVI, MOV, WebM, WMV, M4V, 3GP, 3G2)
 Strips: all metadata atoms and tags (title, comment, encoder, and

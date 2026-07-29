@@ -48,12 +48,13 @@ The following formats fall through to passthrough today, leaking metadata that i
 
 | Priority | Format group | Extensions | Why urgent |
 |:--------:|--------------|-----------|------------|
-| 🔴 P0 | **RTF** | `.rtf` | Trivial text-scanner fix, no NuGet needed. `\author`, `\company`, `\operator` control words leak on every RTF export. |
-| 🟡 P2 | **Flat ODF + Word 2003 XML** | `.fodt`, `.fods`, `.fodp`, `.xml` (Word 2003) | Single-file XML variants of ODF/DOCX; miss our current ZIP-mimetype detector. |
+| � P2 | **Flat ODF + Word 2003 XML** | `.fodt`, `.fods`, `.fodp`, `.xml` (Word 2003) | Single-file XML variants of ODF/DOCX; miss our current ZIP-mimetype detector. |
 | 🟡 P3 | **OOXML template / macro-enabled variants** | `.dotx`, `.dotm`, `.xltx`, `.xltm`, `.potx`, `.potm`, `.ppsx`, `.ppsm`, `.pptm`, `.xlsm`, `.docm` | Almost certainly already handled by the existing OOXML strip path, but not verified by tests. |
 | 🟡 P3 | **ODF template / drawing variants** | `.ott`, `.ots`, `.otp`, `.odg`, `.otg`, `.odc`, `.odf`, `.odb`, `.odi` | Same — `IsOdfFormat` already matches these mimetypes; untested. |
 
 > **CFBF (legacy binary Office)** — moved out of the urgent tier. Covered by `StripCfbfMetadata` (OpenMcdf + OpenMcdf.Ole); all seven extensions (`.doc`, `.dot`, `.xls`, `.xlt`, `.ppt`, `.pot`, `.pps`) share the same code path.
+
+> **RTF** — moved out of the urgent tier. Covered by `StripRtfMetadata`; detects the 6-byte `{\rtf1` prefix and blanks every string-bearing control-word group in `\info` (`\author`, `\title`, `\subject`, `\keywords`, `\comment`, `\operator`, `\company`, `\doccomm`, `\category`, `\hlinkbase`, `\manager`) via a compiled regex. No new NuGet.
 
 > **Note on HTML / HTM** — intentionally excluded from this list. HTML is a content format where `<title>` and most `<meta>` tags are integral to the document (charset, viewport, http-equiv are required for rendering). Selective meta-name stripping is fragile, and stripping metadata but leaving `<script>` / event handlers gives a false sense of security — real HTML hardening is the job of a dedicated HTML sanitiser (`HtmlSanitizer`, DOMPurify, Bleach), not a metadata stripper. HTML therefore stays in the passthrough tier alongside TXT / CSV / MD. See the [Low tier](#-low--narrow-metadata-surface-minimal-risk) below for details.
 
@@ -212,16 +213,133 @@ The following formats fall through to passthrough today, leaking metadata that i
 
 ## Non-image formats (routed to dedicated pipelines)
 
-| Container | Formats | Status | Notes |
-|-----------|---------|:------:|-------|
-| PDF | PDF, AI | ✅ | `PdfTests.cs`, `AiImageTests.cs` |
-| Office Open XML | DOCX, XLSX, PPTX | ✅ | `OpenXmlTests.cs` — core / app / custom properties + thumbnail |
-| Legacy binary Office (CFBF) | DOC, DOT, XLS, XLT, PPT, POT, PPS | ✅ | `LegacyOfficeTests.cs` — 29 tests. OpenMcdf + OpenMcdf.Ole. Deletes `\x05SummaryInformation` and `\x05DocumentSummaryInformation`; container consolidated so freed sectors are dropped from the output. |
-| ODF | ODT, ODS, ODP | ✅ | `OdfTests.cs` |
-| EPUB | EPUB | ✅ | `EpubTests.cs` — Dublin Core + Zip Slip guard |
-| ORA | ORA | ✅ | `OraTests.cs` — `stack.xml` `name`/`description` |
-| Audio | MP3, WAV, FLAC, OGG Vorbis, OGG Opus, M4A, M4B, WMA | ✅ | `AudioVideoTests.cs` |
-| Video | MP4, MKV, AVI, MOV, WebM, WMV, M4V, 3GP, 3G2 | ✅ | `AudioVideoTests.cs` |
+Everything that is not an image is routed to one of eight dedicated pipelines. Each pipeline has its own subsection below. Every row lists the format's magic bytes, the detection status (**Detected**), the test-coverage status (**Tested**), and the library that does the actual parsing.
+
+Legend for this section:
+
+| Symbol | Meaning |
+|:------:|---------|
+| ✅ | Detected by `DetectCategory` and covered by a regression test |
+| ⚠️ | The parser library supports it, but we don't yet route it — falls through to Passthrough today |
+| ❌ | Deliberately excluded (see the row's notes) |
+
+### PDF pipeline — [PDFsharp](https://www.pdfsharp.net/) 6.2.4 (MIT)
+
+| Format | Extensions | Magic | Detected | Tested | Notes |
+|--------|-----------|-------|:--------:|:------:|-------|
+| PDF | `.pdf` | `%PDF` | ✅ | ✅ | `PdfTests.cs` — /Info dictionary, XMP catalog stream, annotation /Author fields (comment, sticky-note, markup). Encrypted / password-protected PDFs return the original unchanged with `processingError`. |
+| Adobe Illustrator | `.ai` | `%PDF` | ✅ | ✅ | `AiImageTests.cs` — AI files ≥ CS use the PDF container, so `%PDF` routes them to the same pipeline. |
+| Encapsulated PDF (EPDF) | `.epdf` | `%PDF` | ⚠️ | ❌ | Untested; PDF-family. Routes correctly via magic bytes. |
+
+### Office Open XML pipeline — [DocumentFormat.OpenXml](https://github.com/dotnet/Open-XML-SDK) 3.5.1 (MIT) + `System.IO.Compression` (BCL)
+
+| Format | Extensions | Mimetype | Detected | Tested | Notes |
+|--------|-----------|----------|:--------:|:------:|-------|
+| Word (macro-free) | `.docx` | `application/vnd.openxmlformats-officedocument.wordprocessingml.document` | ✅ | ✅ | `OpenXmlTests.cs` — core / app / custom properties + `docProps/thumbnail.*` + tracked-change / comment authors (opt-in). |
+| Excel (macro-free) | `.xlsx` | `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` | ✅ | ✅ | Same code path. `xl/persons/person.xml` (Excel 365 threaded comment authors) covered under `StripBodyAuthors = True`. |
+| PowerPoint (macro-free) | `.pptx` | `application/vnd.openxmlformats-officedocument.presentationml.presentation` | ✅ | ✅ | Same code path. `ppt/commentAuthors.xml` covered under `StripBodyAuthors = True`. |
+| Word template / macro-enabled | `.dotx`, `.dotm`, `.docm` | matching OOXML mimetypes | ✅ | ⚠️ | Routed via the ZIP-mimetype router; the OOXML strip path handles them identically. Not yet exercised by dedicated tests. |
+| Excel template / macro-enabled | `.xltx`, `.xltm`, `.xlsm` | matching OOXML mimetypes | ✅ | ⚠️ | Same as above. |
+| PowerPoint template / show / macro | `.potx`, `.potm`, `.ppsx`, `.ppsm`, `.pptm` | matching OOXML mimetypes | ✅ | ⚠️ | Same as above. |
+| Visio (drawing / macro) | `.vsdx`, `.vsdm`, `.vstx`, `.vstm` | `application/vnd.ms-visio.*` | ⚠️ | ❌ | Uses the ZIP OOXML package layout. Untested; may or may not have a `docProps/core.xml`. |
+
+### Legacy binary Office pipeline — [OpenMcdf](https://github.com/openmcdf/openmcdf) 3.1.4 + OpenMcdf.Ole 3.1.4-experimental.1 (both MPL-2.0)
+
+| Format | Extensions | Magic | Detected | Tested | Notes |
+|--------|-----------|-------|:--------:|:------:|-------|
+| Word 97–2003 | `.doc`, `.dot` | `D0 CF 11 E0 A1 B1 1A E1` (CFBF) | ✅ | ✅ | `LegacyOfficeTests.cs` (29 tests). Both OLE property-set streams (`\x05SummaryInformation` + `\x05DocumentSummaryInformation`) deleted; container consolidated so freed sectors are dropped. |
+| Excel 97–2003 | `.xls`, `.xlt` | Same CFBF magic | ✅ | ✅ | Same code path — one detection helper + one strip method covers all seven CFBF-based extensions. |
+| PowerPoint 97–2003 | `.ppt`, `.pot`, `.pps` | Same CFBF magic | ✅ | ✅ | Same code path. |
+| MSI installer | `.msi` | Same CFBF magic | ⚠️ | ❌ | Also CFBF-based but carries no `SummaryInformation` prompt-injection surface in the same sense as Office documents. Deliberate: not routed. |
+
+### RTF pipeline — `System.Text.RegularExpressions` (BCL)
+
+| Format | Extensions | Magic | Detected | Tested | Notes |
+|--------|-----------|-------|:--------:|:------:|-------|
+| RTF | `.rtf` | `{\rtf1` (6 ASCII bytes) | ✅ | ✅ | `RtfTests.cs` (33 tests). Compiled regex blanks `\author`, `\title`, `\subject`, `\keywords`, `\comment`, `\operator`, `\company`, `\doccomm`, `\category`, `\hlinkbase`, `\manager` inside the `\info` group. Numeric control words are preserved. |
+
+### ODF pipeline — `System.IO.Compression` + `System.Xml.Linq` (BCL)
+
+| Format | Extensions | Mimetype | Detected | Tested | Notes |
+|--------|-----------|----------|:--------:|:------:|-------|
+| ODF Text | `.odt` | `application/vnd.oasis.opendocument.text` | ✅ | ✅ | `OdfTests.cs` — dc:* + meta:* elements in `meta.xml`, plus meta:user-defined properties. |
+| ODF Spreadsheet | `.ods` | `application/vnd.oasis.opendocument.spreadsheet` | ✅ | ✅ | Same code path. |
+| ODF Presentation | `.odp` | `application/vnd.oasis.opendocument.presentation` | ✅ | ✅ | Same code path. |
+| ODF Text Template | `.ott` | `application/vnd.oasis.opendocument.text-template` | ✅ | ⚠️ | Routed via the `application/vnd.oasis.opendocument.*` prefix match; identical strip logic. Not yet exercised by a dedicated test. |
+| ODF Spreadsheet Template | `.ots` | `application/vnd.oasis.opendocument.spreadsheet-template` | ✅ | ⚠️ | Same. |
+| ODF Presentation Template | `.otp` | `application/vnd.oasis.opendocument.presentation-template` | ✅ | ⚠️ | Same. |
+| ODF Graphics | `.odg` | `application/vnd.oasis.opendocument.graphics` | ✅ | ⚠️ | Same. |
+| ODF Graphics Template | `.otg` | `application/vnd.oasis.opendocument.graphics-template` | ✅ | ⚠️ | Same. |
+| ODF Chart | `.odc` | `application/vnd.oasis.opendocument.chart` | ✅ | ⚠️ | Same. |
+| ODF Formula | `.odf` | `application/vnd.oasis.opendocument.formula` | ✅ | ⚠️ | Same. |
+| ODF Database | `.odb` | `application/vnd.oasis.opendocument.database` | ✅ | ⚠️ | Same. |
+| ODF Image | `.odi` | `application/vnd.oasis.opendocument.image` | ✅ | ⚠️ | Same. |
+| Flat ODF (single-file XML) | `.fodt`, `.fods`, `.fodp` | `<?xml` + `<office:document>` root | ❌ | ❌ | Not a ZIP — the current router misses these. **Tracked in the urgent priorities.** |
+
+### EPUB pipeline — `System.IO.Compression` + `System.Xml.Linq` (BCL)
+
+| Format | Extensions | Mimetype | Detected | Tested | Notes |
+|--------|-----------|----------|:--------:|:------:|-------|
+| EPUB 2 / 3 | `.epub` | `application/epub+zip` | ✅ | ✅ | `EpubTests.cs` — reads `META-INF/container.xml`, follows the `full-path` (with Zip Slip guard rejecting `..` segments), blanks every Dublin Core element and OPF `<meta>` refinement. |
+
+### ORA pipeline — `System.IO.Compression` + `System.Xml.Linq` (BCL)
+
+| Format | Extensions | Mimetype | Detected | Tested | Notes |
+|--------|-----------|----------|:--------:|:------:|-------|
+| Open Raster | `.ora` | `image/openraster` | ✅ | ✅ | `OraTests.cs` — blanks `name` and `description` attributes on every element in `stack.xml`. Structural attributes (`w`, `h`, `x`, `y`, `opacity`, `src`, `mask-src`, `composite-op`, `visibility`) preserved so the image still renders. |
+
+### SVG pipeline — `System.Xml.Linq` (BCL)
+
+| Format | Extensions | Magic | Detected | Tested | Notes |
+|--------|-----------|-------|:--------:|:------:|-------|
+| SVG | `.svg` | `<?xml` + `<svg>` root, or `<svg>` prefix | ✅ | ✅ | `SvgImageTests.cs` — `<title>`, `<desc>`, `<metadata>` matched by local name at every depth (RDF / Dublin Core payloads included). Output remains a valid SVG. |
+| SVG Compressed | `.svgz` | gzip-wrapped SVG | ⚠️ | ❌ | Gzip magic (`1F 8B`) routes to passthrough today; not decompressed before XML scan. |
+
+### Audio pipeline — [TagLibSharp](https://github.com/mono/taglib-sharp) 2.3.0 (LGPL 2.1)
+
+TagLibSharp supports many more audio formats than we currently detect. The table below lists every audio codec TagLibSharp is documented to parse, together with our current detection and test status.
+
+| Format | Extensions | Magic | Detected | Tested | Notes |
+|--------|-----------|-------|:--------:|:------:|-------|
+| MP3 (ID3v1/v2) | `.mp3` | `ID3` | ✅ | ✅ | `AudioVideoTests.cs` — full ID3v2 tag round-trip. |
+| MP2 / MPEG-1 Layer II | `.mp2` | ID3 header or frame sync | ✅ (via `ID3`) | ⚠️ | Detected when tagged; a raw frame-sync-only file falls through to passthrough. |
+| WAV (RIFF) | `.wav` | `RIFF ... WAVE` | ✅ | ✅ | RIFF INFO chunks + ID3 chunk. |
+| FLAC | `.flac` | `fLaC` | ✅ | ✅ | Vorbis comments + picture blocks. |
+| Ogg Vorbis | `.ogg`, `.oga` | `OggS` + `\x01vorbis` | ✅ | ✅ | Vorbis comments. |
+| Ogg Opus | `.opus` | `OggS` + `OpusHead` | ✅ | ✅ | Opus tags. |
+| Ogg Speex | `.spx` | `OggS` + `Speex` | ✅ (via `OggS`) | ⚠️ | Detected via the Ogg container; not yet exercised by a dedicated test. |
+| Ogg FLAC | `.oga` | `OggS` + FLAC stream | ✅ (via `OggS`) | ⚠️ | Same. |
+| AIFF | `.aiff`, `.aif` | `FORM ... AIFF` | ✅ | ✅ | `ExtendedAudioDetectionTests.cs`. ID3 chunk support. |
+| AIFC (Compressed AIFF) | `.aifc` | `FORM ... AIFC` | ✅ | ✅ | Same code path. |
+| ALAC (Apple Lossless) | `.m4a`, `.alac` | ISOBMFF `ftyp` `alac` | ✅ (via `ftyp`) | ⚠️ | Routed via the generic ISOBMFF ftyp check. |
+| AAC (raw ADTS) | `.aac` | `0xFF 0xF1` / `0xFF 0xF9` | ❌ | ❌ | Rare in the wild — normally wrapped in M4A. Not detected; falls through to passthrough. |
+| MP4 audio (M4A) | `.m4a` | ISOBMFF `ftyp` `M4A ` / `mp42` / `isom` | ✅ | ✅ | Same ISOBMFF ftyp router as HEIC/AVIF; distinguished by `IsHeifOrAvifBrand`. |
+| MP4 audiobook (M4B) | `.m4b` | ISOBMFF `ftyp` `M4B ` | ✅ | ✅ | Same code path. |
+| WMA (ASF) | `.wma` | `30 26 B2 75` (ASF GUID) | ✅ | ✅ | ASF header extension objects. |
+| APE (Monkey's Audio) | `.ape`, `.mac` | `MAC ` | ✅ | ✅ | `ExtendedAudioDetectionTests.cs`. APEv2 + ID3v2 tags. |
+| WavPack | `.wv` | `wvpk` | ✅ | ✅ | Same. APEv2 + ID3v1 tags. |
+| Musepack SV7 | `.mpc`, `.mp+` | `MP+` + low-nibble version `0x07` | ✅ | ✅ | Same. Strict-marker check to reject false positives. |
+| Musepack SV8 | `.mpc` | `MPCK` | ✅ | ✅ | Same. |
+| AC-3 (Dolby Digital) | `.ac3` | `0x0B 0x77` frame sync | ❌ | ❌ | Not detected. TagLibSharp has partial support; low-priority. |
+| DSF (DSD Storage Facility) | `.dsf` | `DSD ` | ❌ | ❌ | Not detected. TagLibSharp supports it; low-priority. |
+
+### Video pipeline — [TagLibSharp](https://github.com/mono/taglib-sharp) 2.3.0 (LGPL 2.1)
+
+| Format | Extensions | Magic | Detected | Tested | Notes |
+|--------|-----------|-------|:--------:|:------:|-------|
+| MP4 video | `.mp4` | ISOBMFF `ftyp` `mp42` / `isom` | ✅ | ✅ | Same ftyp router. |
+| M4V (Apple video) | `.m4v` | ISOBMFF `ftyp` `M4V ` / `M4VH` / `M4VP` | ✅ | ✅ | Same. |
+| MOV (QuickTime) | `.mov`, `.qt` | ISOBMFF `ftyp` `qt  ` | ✅ | ✅ | Same. |
+| 3GP | `.3gp`, `.3gp2` | ISOBMFF `ftyp` `3gp4` | ✅ | ✅ | Same. |
+| 3G2 | `.3g2` | ISOBMFF `ftyp` `3g2a` | ✅ | ✅ | Same. |
+| F4V | `.f4v` | ISOBMFF `ftyp` `f4v ` | ✅ (via `ftyp`) | ⚠️ | Routed by the ftyp catch-all; not yet exercised by a dedicated test. |
+| Matroska | `.mkv` | EBML `1A 45 DF A3` | ✅ | ✅ | `AudioVideoTests.cs`. |
+| WebM | `.webm` | EBML `1A 45 DF A3` + DocType `webm` | ✅ | ✅ | Same code path. |
+| AVI (RIFF) | `.avi` | `RIFF ... AVI ` | ✅ | ✅ | RIFF INFO chunks. |
+| WMV (ASF) | `.wmv` | `30 26 B2 75` | ✅ | ✅ | Same ASF pipeline as WMA. |
+| ASF (generic) | `.asf` | `30 26 B2 75` | ✅ | ✅ | Same. |
+| FLV (Flash video) | `.flv` | `FLV\x01` | ❌ | ❌ | Not detected. Deprecated container; low-priority. |
+| MJ2 (Motion JPEG 2000) | `.mj2` | ISOBMFF `ftyp` `mjp2` | ✅ (via `ftyp`) | ⚠️ | Routed by the ftyp catch-all; TagLibSharp may or may not parse the tags. |
 
 ## Untested detection routes worth reviewing
 
@@ -261,7 +379,7 @@ These formats every LibreOffice / Microsoft Office user can produce with a singl
 | **Legacy binary Word** (Word 97 – 2003) | `.doc`, `.dot` (template) | `D0 CF 11 E0 A1 B1 1A E1` (CFBF / OLE Compound) | `SummaryInformation` stream (Title, Subject, Author, Keywords, Comments, Template, Last-Saved-By, Revision, Application, dates) + `DocumentSummaryInformation` stream (Category, Manager, Company, HeadingPairs, ContentStatus, Language) + Custom properties | ✅ Stripped via `StripCfbfMetadata` (OpenMcdf + OpenMcdf.Ole). Both OLE property-set streams are wiped and the CFBF is consolidated so freed sectors are dropped from the output. |
 | **Legacy binary Excel** (Excel 97 – 2003) | `.xls`, `.xlt` (template) | Same CFBF magic | Same two OLE streams — book creator, company, last-modified, template path | ✅ Same code path — one detection helper + one strip method covers all seven CFBF-based extensions. |
 | **Legacy binary PowerPoint** (PowerPoint 97 – 2003) | `.ppt`, `.pot` (template), `.pps` (slideshow) | Same CFBF magic | Same two OLE streams | ✅ Same code path. |
-| **RTF (Rich Text Format)** | `.rtf` | `{\rtf1` (5 ASCII bytes) | `\author`, `\title`, `\subject`, `\keywords`, `\comment`, `\operator`, `\company`, `\doccomm`, `\version`, `\vern` control words | Add `IsRtfFile()` detection + implement `StripRtfMetadata` using a text-based scanner (regex replaces `\author X;` etc. with empty values). No new NuGet needed. |
+| **RTF (Rich Text Format)** | `.rtf` | `{\rtf1` (5 ASCII bytes) | `\author`, `\title`, `\subject`, `\keywords`, `\comment`, `\operator`, `\company`, `\doccomm`, `\version`, `\vern` control words | ✅ Stripped via `StripRtfMetadata` — detects the 6-byte prefix, scans the file as ISO-8859-1 text (RTF is 7-bit ASCII on disk), and blanks the string-bearing control-word groups (`\author`, `\title`, `\subject`, `\keywords`, `\comment`, `\operator`, `\company`, `\doccomm`, `\category`, `\hlinkbase`, `\manager`). Numeric control words are preserved. 33 tests per platform in [`RtfTests.cs`](../FileMetadataStripping.Tests/Documents/RtfTests.cs). |
 
 ### 🟠 High — leaks metadata, less common upload path
 
@@ -290,27 +408,16 @@ These variants should already be handled correctly by the current OOXML / ODF st
 | dBASE III / IV | `.dbf` | First byte 0x03 / 0x83 / 0x8B (version) | Binary tabular; may carry a MEMO field | Document as intentional passthrough. |
 | SYLK | `.slk` | `ID;P` | Text-based tabular, no user metadata | Document as intentional passthrough. |
 
-### Audio detection gaps (unchanged from the previous checklist pass)
-
-| Format | Magic | Metadata risk | Recommendation |
-|--------|-------|---------------|----------------|
-| AIFF | `FORM ... AIFF` | ID3 chunks possible | Add detection — TagLibSharp supports it |
-| APE (Monkey's Audio) | `MAC ` | APEv2 / ID3v2 tags | Add detection — TagLib supports it |
-| WavPack (.wv) | `wvpk` | APEv2 / ID3v1 tags | Add detection — TagLib supports it |
-| MPC (Musepack) | `MP+` or `MPCK` | APEv2 tags | Add detection — TagLib supports it |
-| AAC (raw ADTS) | `0xFF 0xF1` / `0xFF 0xF9` | Rare in raw ADTS; usually wrapped in M4A | Low priority — user is more likely to upload the M4A wrapper |
-| FLV (Flash video) | `FLV\x01` | Metadata script atoms | Low priority — deprecated container |
-| F4V | ISOBMFF ftyp `f4v ` | Same as MP4 | Would work if added to the ftyp catch-all (it currently is — but untested) |
-| MJ2 (Motion JPEG 2000) | ISOBMFF ftyp `mjp2` | Same as MP4 | Would work via ftyp catch-all |
+> The **audio and video detection gaps** section previously in this file has moved into the [Audio pipeline](#audio-pipeline--taglibsharp-230-lgpl-21) and [Video pipeline](#video-pipeline--taglibsharp-230-lgpl-21) tables above, which enumerate every TagLibSharp-supported format alongside our detection and test status.
 
 ### Suggested implementation order
 
 1. ~~**CFBF (legacy binary Office)**~~ — ✅ Done. `StripCfbfMetadata` handles `.doc`, `.dot`, `.xls`, `.xlt`, `.ppt`, `.pot`, `.pps` in a single pass via OpenMcdf + OpenMcdf.Ole.
-2. **RTF** — small, dependency-free, no NuGet required. Now the highest-leverage remaining gap.
+2. ~~**RTF**~~ — ✅ Done. `StripRtfMetadata` blanks every string-bearing `\info` control word via a compiled regex. No NuGet added.
 3. **Flat ODF + Word 2003 XML** — one shared XML detection routes both.
 4. **Untested OOXML/ODF variants (medium)** — one small test per extension to prove the existing code path handles them.
-5. **Audio detection gaps** — one detection branch per magic, TagLibSharp already parses each.
-6. **HTML passthrough test** — lock in the intentional passthrough contract so the classification cannot silently change.
+5. ~~**Audio detection gaps**~~ — ✅ Done. AIFF / AIFC, APE, WavPack and MPC (SV7 + SV8) added to `DetectCategory` and `GetMediaExtensionHint`; covered by `ExtendedAudioDetectionTests.cs` with two false-positive guards (bare `MP+`, `FORM`+`ILBM`).
+6. ~~**HTML passthrough test**~~ — ✅ Done. `HtmlPassthroughTests.cs` locks in the intentional-passthrough contract: `<meta name="author">`, `<title>` and body content all pass through unchanged with `IsPassthrough = true` and `RemovedEntryCount = 0`.
 
 ## How to update this file
 
