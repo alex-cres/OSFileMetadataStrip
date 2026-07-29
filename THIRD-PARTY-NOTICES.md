@@ -57,6 +57,26 @@ This file lists the open-source packages used by **OSFileMetadataStrip** at runt
 
 ---
 
+### OpenMcdf
+
+- **Version:** 3.1.4
+- **License:** [Mozilla Public License 2.0](https://www.mozilla.org/en-US/MPL/2.0/)
+- **Source:** https://github.com/openmcdf/openmcdf
+- **NuGet:** https://www.nuget.org/packages/OpenMcdf
+- **Purpose:** Reading and rewriting Compound File Binary Format (CFBF / OLE Compound Document) containers used by legacy binary Office files — Word 97–2003 (.doc, .dot), Excel 97–2003 (.xls, .xlt), and PowerPoint 97–2003 (.ppt, .pot, .pps).
+
+### OpenMcdf.Ole
+
+- **Version:** 3.1.4-experimental.1
+- **License:** [Mozilla Public License 2.0](https://www.mozilla.org/en-US/MPL/2.0/)
+- **Source:** https://github.com/openmcdf/openmcdf
+- **NuGet:** https://www.nuget.org/packages/OpenMcdf.Ole
+- **Purpose:** Parsing the OLE property-set streams `\x05SummaryInformation` and `\x05DocumentSummaryInformation` inside CFBF containers so their contents (Title, Author, Company, Manager, Custom properties, …) can be captured in `ExtractedMetadata` before the streams are deleted.
+
+> **MPL 2.0 note:** MPL 2.0 is a weak-copyleft licence that requires source disclosure only for modifications to the MPL-covered files themselves. Consuming OpenMcdf as an unmodified NuGet DLL keeps the consuming application closed-source. Version pinned to lock behaviour because OpenMcdf.Ole upstream still ships as a prerelease ("experimental").
+
+---
+
 ## Transitive Runtime Dependencies
 
 The following packages are pulled in automatically by the direct dependencies above.
@@ -69,6 +89,7 @@ The following packages are pulled in automatically by the direct dependencies ab
 | `System.Security.Cryptography.Pkcs` | 8.0.1 | MIT | PDFsharp |
 | `Microsoft.Extensions.Logging.Abstractions` | 8.0.3 | MIT | PDFsharp |
 | `Microsoft.Extensions.DependencyInjection.Abstractions` | 8.0.2 | MIT | PDFsharp |
+| `System.Memory` | 4.6.3 | MIT | OpenMcdf (net48 transitive) |
 
 ---
 

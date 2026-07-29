@@ -1,0 +1,149 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>OutSystems.NssFileMetadataStripping</name>
+    </assembly>
+    <members>
+        <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.MssStripFileMetadata(System.Byte[],OutSystems.NssFileMetadataStripping.RCFileMetadataResultRecord@)">
+            <summary>
+            Strips metadata from a file. Supports images (EXIF/IPTC/XMP), SVG (title/desc/metadata), PDFs, OOXML (DOCX/XLSX/PPTX), ODF (ODT/ODS/ODP), EPUB, ORA (Open Raster), and audio/video (MP3/WAV/FLAC/OGG/MP4/MKV/AVI). Unrecognised formats returned unchanged with IsPassthrough=true.
+            </summary>
+            <param name="ssRawFile">The uploaded file in any supported format.</param>
+            <param name="ssStripFileMetadata">The stripped file and audit metadata.</param>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.DetectZipCategory(System.Byte[])">
+            <summary>Routes a ZIP-based file (ODF / EPUB / ORA / OOXML) via its mimetype entry.</summary>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.IsHeifOrAvifBrand(System.Byte[])">
+            <summary>
+            Returns true when the ISO Base Media ftyp major brand identifies a
+            HEIC, HEIF, or AVIF image. These formats share the ISOBMFF container with MP4/MOV
+            and must be routed to the image path, not the audio/video path.
+            </summary>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.StripHdrCommentLines(System.Byte[])">
+            <summary>Removes encoder-injected comment lines from a Radiance HDR byte stream.
+            Strips every '#' line that is not a '#?' magic marker. The resolution string
+            and binary pixel data are preserved verbatim.</summary>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.RemoveNamespacedAttributes(ImageMagick.IMagickImage{System.Byte})">
+            <summary>Removes attributes with dpx:/cin: namespace prefixes that survive Strip().</summary>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.StripSvgMetadata(System.Byte[])">
+            <summary>Strips XML text nodes (&lt;title&gt;, &lt;desc&gt;, &lt;metadata&gt;) from an SVG document.</summary>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.IsSvgFile(System.Byte[])">
+            <summary>Detects SVG by byte inspection (start with '&lt;' and contain '&lt;svg' within the first 4 KB).</summary>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.FindOoxmlThumbnailPath(System.IO.Packaging.Package)">
+            <summary>Returns the ZIP entry path of the OOXML embedded thumbnail image, or null if none.</summary>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.RemoveOoxmlThumbnailRelationship(System.IO.Compression.ZipArchive,System.String)">
+            <summary>Removes the thumbnail relationship from _rels/.rels after the thumbnail entry is deleted.</summary>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.StripEpubMetadata(System.Byte[])">
+            <summary>Strips Dublin Core metadata (dc:*) and OPF meta refinements from the OPF package document.</summary>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.SanitiseEpubOpfPath(System.String)">
+            <summary>Rejects OPF paths containing traversal segments so the output archive
+            cannot be turned into a Zip Slip payload by a crafted EPUB.</summary>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.StripOraMetadata(System.Byte[])">
+            <summary>Strips user-controlled name/description attributes from stack.xml.</summary>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.IssFileMetadataStripping.MssStripFileMetadata(System.Byte[],OutSystems.NssFileMetadataStripping.RCFileMetadataResultRecord@)">
+            <summary>
+            Strips metadata from a file. Supports images (EXIF/IPTC/XMP), PDFs, OOXML (DOCX/XLSX/PPTX), and audio/video (MP3/WAV/FLAC/OGG/MP4/MKV/AVI). Unrecognised formats returned unchanged with IsPassthrough=true.
+            </summary>
+            <param name="ssRawFile">The uploaded file in any supported format: images (JPEG, PNG, TIFF, WebP, etc.), PDF, Office documents (DOCX, XLSX, PPTX), or audio/video (MP3, WAV, MP4, etc.).</param>
+            <param name="ssStripFileMetadata">The stripped file and audit metadata. CleanFile is safe to forward to AI APIs. ExtractedMetadata contains the removed entries as JSON. RemovedEntryCount and IsPassthrough support audit logging.</param>
+        </member>
+        <member name="T:OutSystems.NssFileMetadataStripping.STFileMetadataResultStructure">
+            <summary>
+            Structure <code>STFileMetadataResultStructure</code> that represents the Service Studio structure
+             <code>FileMetadataResult</code> <p> Description: Result of stripping metadata from a file
+            , including the clean file and the metadata that was removed for policy review.</p>
+            </summary>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.STFileMetadataResultStructure.Read(System.Data.IDataReader,System.Int32@)">
+            <summary>
+            Read a record from database
+            </summary>
+            <param name="r"> Data base reader</param>
+            <param name="index"> index</param>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.STFileMetadataResultStructure.ReadDB(System.Data.IDataReader)">
+            <summary>
+            Read from database
+            </summary>
+            <param name="r"> Data reader</param>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.STFileMetadataResultStructure.ReadIM(OutSystems.NssFileMetadataStripping.STFileMetadataResultStructure)">
+            <summary>
+            Read from record
+            </summary>
+            <param name="r"> Record</param>
+        </member>
+        <member name="T:OutSystems.NssFileMetadataStripping.RCFileMetadataResultRecord">
+            <summary>
+            Structure <code>RCFileMetadataResultRecord</code>
+            </summary>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.RCFileMetadataResultRecord.Read(System.Data.IDataReader,System.Int32@)">
+            <summary>
+            Read a record from database
+            </summary>
+            <param name="r"> Data base reader</param>
+            <param name="index"> index</param>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.RCFileMetadataResultRecord.ReadDB(System.Data.IDataReader)">
+            <summary>
+            Read from database
+            </summary>
+            <param name="r"> Data reader</param>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.RCFileMetadataResultRecord.ReadIM(OutSystems.NssFileMetadataStripping.RCFileMetadataResultRecord)">
+            <summary>
+            Read from record
+            </summary>
+            <param name="r"> Record</param>
+        </member>
+        <member name="T:OutSystems.NssFileMetadataStripping.RLFileMetadataResultRecordList">
+            <summary>
+            RecordList type <code>RLFileMetadataResultRecordList</code> that represents a record list of
+             <code>FileMetadataResult</code>
+            </summary>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.RLFileMetadataResultRecordList.#ctor">
+            <summary>
+            Default Constructor
+            </summary>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.RLFileMetadataResultRecordList.#ctor(System.Data.IDbTransaction)">
+            <summary>
+            Constructor with transaction parameter
+            </summary>
+            <param name="trans"> IDbTransaction Parameter</param>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.RLFileMetadataResultRecordList.#ctor(System.Data.IDbTransaction,OutSystems.HubEdition.RuntimePlatform.Db.OSList{OutSystems.NssFileMetadataStripping.RCFileMetadataResultRecord}.ReadDBMethodDelegate)">
+            <summary>
+            Constructor with transaction parameter and alternate read method
+            </summary>
+            <param name="trans"> IDbTransaction Parameter</param>
+            <param name="alternateReadDBMethod"> Alternate Read Method</param>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.RLFileMetadataResultRecordList.#ctor(System.Runtime.Serialization.SerializationInfo,System.Runtime.Serialization.StreamingContext)">
+            <summary>
+            Constructor declaration for serialization
+            </summary>
+            <param name="info"> SerializationInfo</param>
+            <param name="context"> StreamingContext</param>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.RLFileMetadataResultRecordList.NewList">
+            <summary>
+            Create as new list
+            </summary>
+            <returns>The new record list</returns>
+        </member>
+    </members>
+</doc>

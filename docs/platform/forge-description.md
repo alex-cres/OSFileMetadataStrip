@@ -25,23 +25,49 @@ Calling `StripFileMetadata` at the earliest point in any flow that accepts file 
 
 ### Supported File Types
 
+Every format listed below has an explicit xUnit test in the component's test project. No format is claimed here that is not verified by a regression test.
+
 | Category | Formats | Metadata Stripped |
 
 |----------|---------|-------------------|
 
-| Images | JPEG, PNG, GIF, TIFF, WebP, TGA, and 100+ more | EXIF (camera data, GPS, descriptions), IPTC (captions, keywords), XMP, ICC profiles, comments |
+| Standard images | JPEG, PNG, GIF, TIFF, WebP | EXIF (camera data, GPS, descriptions), IPTC (captions, keywords), XMP, ICC profiles, comments |
 
-| Audio | MP3, FLAC, OGG, WAV, M4A, WMA, and more | ID3 tags, Vorbis comments, metadata atoms (title, artist, album, comment, genre…) |
+| Animated / multi-frame | Animated GIF, Animated WebP, APNG, MPO, MNG | Metadata stripped from every frame; all frames preserved |
 
-| Video | MP4, MOV, AVI, MKV, WebM, WMV | Metadata atoms/tags (title, conductor, copyright…) |
+| AVIF | AVIF | Full read/write round-trip: EXIF, IPTC, XMP, ICC profiles, comments |
 
-| PDF | PDF | Title, Author, Subject, Keywords, Creator, Producer, XMP catalog metadata stream, and annotation Author fields (comment, sticky-note, markup annotations) |
+| HEIC / HEIF | HEIC, HEIF (mif1 / msf1) | Metadata extracted; output transcoded to JPEG (x265 HEVC encoder is GPL-licensed and cannot be bundled). `ExtractedMetadata` includes a `transcodedFormat` key. |
 
-| Office documents | DOCX, XLSX, PPTX | Core properties (Creator, LastModifiedBy, Created/Modified dates, Title, Subject, Description, Keywords, Category, ContentStatus, Revision, LastPrinted, Identifier, Version), application properties (Application, Company, Manager, AppVersion, Template, HyperlinkBase), custom property key/value pairs. Body author stripping (tracked changes, comment authors, Excel 365 xl/persons entries) requires `StripBodyAuthors = True`. |
+| RAW camera formats | ARW, CR2, DNG, NEF, ORF, PEF, RAF, X3F | EXIF, XMP, ICC profiles |
+
+| Modern / HDR | JPEG XL, JPEG 2000 (JP2 / J2C / J2K / JPT), JPEG XR / WDP, Ultra HDR, OpenEXR, Radiance HDR, QOI | EXIF, XMP, ICC profiles; Radiance HDR encoder-comment lines. JPT is decode-only. |
+
+| Legacy raster | PSD / PSB, TGA, DDS, PCX / DCX, SGI, SUN, PICT, PCD / PCDS, FITS, JBIG, WMF, ICO, XCF (GIMP), Netpbm (PBM / PGM / PPM / PNM) | EXIF, XMP, ICC profiles, and format-specific comments where present. GIMP XCF is transcoded to JPEG on write. |
+
+| Film formats | DPX, CIN | Standard image profiles plus per-image `dpx:*` and `cin:*` production attributes |
+
+| Medical imaging | DICOM (.dcm) | Detected via preamble + `DICM` signature; output transcoded to JPEG. DICOM tag parsing is out of scope. |
+
+| SVG | SVG | `<title>`, `<desc>`, `<metadata>` at every depth |
+
+| PDF | PDF, AI (Adobe Illustrator) | Title, Author, Subject, Keywords, Creator, Producer, XMP catalog stream, annotation Author fields |
+
+| Office documents | DOCX, XLSX, PPTX | Core / app / custom properties + `docProps/thumbnail.*`. Body author stripping (tracked changes, comment authors, Excel 365 xl/persons entries) requires `StripBodyAuthors = True`. |
+
+| Legacy binary Office | DOC, DOT, XLS, XLT, PPT, POT, PPS (Word / Excel / PowerPoint 97 – 2003) | `\x05SummaryInformation` stream (Title, Subject, Author, Keywords, Comments, Template, Last-Saved-By, Application) and `\x05DocumentSummaryInformation` stream (Category, Manager, Company, ContentStatus, Language, custom user-defined properties). Detected via the CFBF 8-byte magic; the container is consolidated after deletion so freed sectors are dropped from the output. |
 
 | ODF documents | ODT, ODS, ODP | dc:creator, dc:title, dc:description, dc:subject, meta:initial-creator, meta:generator, meta:editing-cycles, meta:editing-duration, and all meta:user-defined properties |
 
-| BMP / Plain text / other | BMP, TXT, CSV, MD, JSON, XML, HTML, and any unrecognised format | Passthrough — returned unchanged with `IsPassthrough = true` |
+| EPUB | EPUB | Dublin Core (`dc:*`) and every OPF `<meta>` refinement |
+
+| ORA (Open Raster) | ORA | `name` / `description` attributes on every element in `stack.xml` |
+
+| Audio | MP3, WAV, FLAC, OGG (Vorbis / Opus), M4A, M4B, WMA | ID3 tags, Vorbis / Opus comments, RIFF INFO chunks, iTunes MP4 atoms, ASF header extension objects |
+
+| Video | MP4, MKV, AVI, MOV, WebM, WMV, M4V, 3GP, 3G2 | Metadata atoms / tags |
+
+| Passthrough | BMP, DIB, WBMP, XBM, XPM, TXT, CSV, MD, JSON, XML, HTML, and any unrecognised format | Returned unchanged with `IsPassthrough = true` |
 
 ---
 
@@ -118,6 +144,8 @@ StripFileMetadata(RawFile: FileContent.Content)
 | Magick.NET-Q8-AnyCPU | Apache 2.0 | Image decoding and metadata stripping || TagLibSharp | LGPL 2.1 | Audio and video metadata stripping || PDFsharp | MIT | PDF /Info dictionary access |
 
 | DocumentFormat.OpenXml | MIT | Office Open XML package properties |
+
+| OpenMcdf + OpenMcdf.Ole | MPL 2.0 | Legacy binary Office (CFBF) container: OLE property-set stream deletion and consolidation |
 
 ---
 

@@ -66,10 +66,33 @@ distinguish passthrough files from clean processed files.
 SUPPORTED FILE FORMATS
 -----------------------
 
-Images (JPEG, PNG, GIF, TIFF, WebP, TGA, and 100+ more)
+Every format listed below has an explicit xUnit test in the
+component's test project. No format is claimed here that is not
+verified by a regression test.
+
+Standard raster images (JPEG, PNG, GIF, TIFF, WebP)
 Strips: EXIF, IPTC, XMP, ICC profiles, image comments.
-Animated GIFs and multi-frame TIFFs are fully supported: metadata
-is stripped from every frame and all frames are preserved in the output.
+Animated GIFs, animated WebPs, and multi-frame TIFFs are fully
+supported: metadata is stripped from every frame and all frames
+are preserved in the output.
+
+AVIF
+Fully supported. EXIF, IPTC, XMP, and comments are stripped and
+the clean file is returned.
+
+HEIC / HEIF (mif1 / msf1 brands)
+Detected via ISOBMFF ftyp brand check. Metadata is stripped and the
+output is transcoded to JPEG. The x265 HEVC encoder is GPL-licensed
+and cannot be bundled in a redistributable library, so the original
+HEIC format is not preserved. ExtractedMetadata includes a
+transcodedFormat key explaining the format change.
+
+APNG (Animated PNG)
+Detected by the acTL chunk. All animation frames are decoded and
+stripped. Writing APNG requires ImageMagick's video delegate
+(ffmpeg). When ffmpeg is present the output is APNG; when it is
+absent the clean output is transcoded to JPEG and ExtractedMetadata
+includes a transcodedFormat key.
 
 PDF
 Strips: Title, Author, Subject, Keywords, Creator, Producer, the
@@ -82,8 +105,13 @@ Office Open XML (DOCX, XLSX, PPTX)
 Always strips: core properties (Creator, LastModifiedBy, Created,
 Modified, Title, Subject, Description, Keywords, Category, Revision,
 LastPrinted, Identifier, Version), application properties (Application,
-Company, Manager, AppVersion, Template, HyperlinkBase), and all custom
-property key/value pairs.
+Company, Manager, AppVersion, Template, HyperlinkBase), all custom
+property key/value pairs, and the embedded page-preview thumbnail
+(docProps/thumbnail.jpeg, .png, .emf, .wmf, .gif, .tiff) together
+with its _rels/.rels thumbnail relationship. Removing the thumbnail
+prevents a rendered page preview from reaching a vision model.
+When a thumbnail was present, ExtractedMetadata includes a
+thumbnail key naming the removed part.
 
 When StripBodyAuthors = True, also blanks author names from tracked
 changes and comments inside the document body: w:author and w:initials
@@ -101,6 +129,34 @@ appVersion, appTemplate, appHyperlinkBase.
 Custom properties are recorded as a JSON object under the key
 customProperties in ExtractedMetadata.
 
+Legacy binary Office (DOC, DOT, XLS, XLT, PPT, POT, PPS)
+Word / Excel / PowerPoint 97 - 2003 files share the same Compound
+File Binary Format (CFBF, also called OLE Compound Document)
+container. Detected via the 8-byte magic D0 CF 11 E0 A1 B1 1A E1,
+checked before the ZIP PK signature so there is no clash with
+OOXML, ODF, EPUB, or ORA.
+
+Deletes both OLE property-set streams: the SummaryInformation
+stream (Title, Subject, Author, Keywords, Comments, Template,
+Last-Saved-By, Application, revision and edit-time counters,
+create / save / print dates) and the DocumentSummaryInformation
+stream (Category, Manager, Company, ContentStatus, Language, and
+all user-defined custom properties). After deletion the CFBF
+container is consolidated so the freed sectors are dropped from
+the output - the raw property values do not survive in unallocated
+space.
+
+Well-named properties are captured in ExtractedMetadata before the
+streams are deleted, for audit: summaryInformation for the first
+stream, documentSummaryInformation for the second, and
+customProperties for user-defined properties. A single detection
+helper and a single strip method cover all seven Office extensions.
+
+If the file has the CFBF magic bytes but the container is truncated
+or corrupt, the original file is returned unchanged and
+ExtractedMetadata contains a processingError key. No exception is
+raised.
+
 ODF (ODT, ODS, ODP)
 Strips: dc:creator, dc:title, dc:description, dc:subject,
 meta:initial-creator, meta:generator, meta:editing-cycles,
@@ -109,16 +165,86 @@ Values are recorded in ExtractedMetadata under the keys creator,
 title, description, subject, initialCreator, generator,
 editingCycles, editingDuration, and userDefinedProperties.
 
-Audio (MP3, FLAC, OGG, WAV, M4A, WMA)
-Strips: ID3 tags, Vorbis comments, all metadata atoms.
+EPUB
+Detected by the ZIP mimetype entry. Reads META-INF/container.xml to
+locate the OPF package document, then blanks every Dublin Core
+element (dc:creator, dc:title, dc:description, dc:publisher,
+dc:rights, dc:subject, dc:language, dc:date, dc:identifier, ...) and
+every OPF <meta> refinement inside the metadata section. The original
+values are recorded in ExtractedMetadata under the dc:* keys, with
+repeated elements preserved as arrays. OPF paths containing .. path
+segments are rejected as a Zip Slip guard; the original file is
+returned unchanged with a processingError entry.
 
-Video (MP4, MOV, AVI, MKV, WebM, WMV)
-Strips: all metadata atoms and tags.
+ORA (Open Raster)
+Detected by the ZIP mimetype entry (image/openraster). Blanks the
+name and description attributes on every element in stack.xml
+(image, stack, layer, mask, text). Structural attributes (w, h, x,
+y, opacity, src, mask-src, composite-op, visibility) are preserved
+so the image still renders correctly. Removed attribute values are
+recorded in ExtractedMetadata.
 
-Plain text, BMP, CSV, JSON, XML, and unrecognised formats
-Passthrough - file returned unchanged, IsPassthrough = true.
-BMP has no standard metadata containers (no EXIF, IPTC, or XMP support)
-and is always returned unchanged regardless of content.
+SVG
+Parsed as XML. Removes <title>, <desc>, and <metadata> elements at
+every depth, matched by local name so unnamespaced children are also
+cleaned. Removed text content is recorded in ExtractedMetadata under
+the keys title, desc, and metadata. The output remains a valid SVG.
+
+DPX and CIN (film image formats)
+Routed through the image pipeline. In addition to image.Strip(),
+any remaining per-image production attributes prefixed dpx:* (DPX)
+or cin:* (CIN) - film title, origination device, source filename,
+frame position, and so on - are explicitly removed from the output.
+The captured values are recorded in ExtractedMetadata under the
+dpx and cin keys.
+
+RAW camera formats
+ARW (Sony), CR2 (Canon), DNG (Adobe), NEF (Nikon), ORF (Olympus),
+PEF (Pentax), RAF (Fuji), X3F (Sigma). Decoded via the underlying
+TIFF/CR2 structure; EXIF, XMP, and ICC profiles are removed.
+
+Modern and HDR image formats
+JPEG XL (JXL), JPEG 2000 (JP2 and the raw code streams J2C / J2K /
+JPT), JPEG XR (JXR / WDP), Ultra HDR (UHDR), OpenEXR (EXR),
+Radiance HDR (.hdr), and QOI. EXIF, XMP, ICC profiles, and encoder
+comments are removed. Radiance HDR encoder-injected
+"# Created by ImageMagick" comment lines are stripped after write.
+JPT is decode-only — Magick.NET-Q8's OpenJPEG build does not
+compile in the JPT encoder, so JPT input is returned unchanged with
+a processingError note.
+
+Legacy raster formats
+PSD / PSB (Photoshop), TGA (Truevision), DDS (DirectDraw Surface),
+PCX (single-page) and DCX (multi-page Paintbrush), SGI, SUN
+Rasterfile, PICT, PCD / PCDS (Photo CD), FITS, JBIG, WMF (Windows
+Metafile), ICO (Windows Icon), XCF (GIMP), and Netpbm (PBM, PGM,
+PPM, PNM). EXIF, XMP, ICC profiles, and format-specific comments
+are removed where present. GIMP XCF is transcoded to JPEG on write.
+
+Medical imaging (DICOM .dcm)
+Detected via 128-byte preamble + DICM signature; output is
+transcoded to JPEG (pixel data preserved). DICOM data-dictionary
+tag parsing (PHI fields such as PatientName, PatientID, StudyDate,
+InstitutionName) is out of scope for this release.
+
+MPO and MNG (multi-image containers)
+Every embedded image / frame is stripped and preserved.
+
+Audio (MP3, WAV, FLAC, OGG Vorbis / Opus, M4A, M4B, WMA)
+Strips: ID3 tags, Vorbis / Opus comments, RIFF INFO chunks, iTunes
+MP4 atoms, and ASF header extension objects (title, artist, album,
+comment, and so on).
+
+Video (MP4, MKV, AVI, MOV, WebM, WMV, M4V, 3GP, 3G2)
+Strips: all metadata atoms and tags (title, comment, encoder, and
+so on). 3GP and 3G2 are the ISOBMFF variants used by legacy mobile
+video recorders.
+
+Passthrough (BMP, DIB, WBMP, XBM, XPM, TXT, CSV, MD, JSON, XML, HTML,
+and any unrecognised format)
+File returned unchanged, IsPassthrough = true. BMP, DIB, WBMP, XBM,
+and XPM have no standard metadata containers and are always returned
+unchanged regardless of content.
 
 
 NOTES
@@ -144,3 +270,20 @@ RemovedEntryCount will be 0 and IsPassthrough will be false.
 For animated GIFs and multi-frame TIFFs, metadata extraction reads
 the first frame only (file-level metadata is stored there). All frames
 are stripped and written to the output.
+
+For Radiance HDR files, encoder-inserted comment lines (such as
+# Created by ImageMagick) are removed from the output in addition
+to the standard metadata strip. Only the #?RADIANCE format
+identification line is preserved. ExtractedMetadata will not
+include encoder artifact lines under the comment key.
+
+Known gaps in the current release
+- DICOM medical imaging files are detected and routed through the
+  image pipeline, but PHI tags carried in the DICOM header (patient
+  name, patient ID, study dates, institution) survive stripping. A
+  DICOM-aware SDK would be required to clear those fields and none
+  is bundled.
+- Animated WebP files are decoded and their file-level metadata is
+  stripped, but per-frame metadata chunks survive because the
+  libwebpmux native library required to rewrite them is not bundled.
+- WBMP has no reliable magic bytes and is treated as passthrough.
