@@ -4,18 +4,83 @@
         <name>OutSystems.NssFileMetadataStripping</name>
     </assembly>
     <members>
-        <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.MssStripFileMetadata(System.Byte[],OutSystems.NssFileMetadataStripping.RCFileMetadataResultRecord@)">
+        <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.MssStripFileMetadata(System.Byte[],System.Boolean,OutSystems.NssFileMetadataStripping.RCFileMetadataResultRecord@)">
             <summary>
-            Strips metadata from a file. Supports images (EXIF/IPTC/XMP), PDFs, OOXML (DOCX/XLSX/PPTX), and audio/video (MP3/WAV/FLAC/OGG/MP4/MKV/AVI). Unrecognised formats returned unchanged with IsPassthrough=true.
+            Strips metadata from a file. Supports images (EXIF/IPTC/XMP), PDFs, OOXML (DOCX/XLSX/PPTX), legacy binary Office (DOC/XLS/PPT and templates), RTF, ODF, EPUB, ORA, SVG, and audio/video. Unrecognised formats returned unchanged with IsPassthrough=true.
             </summary>
-            <param name="ssRawFile">The uploaded file in any supported format.</param>
+            <param name="ssRawFile">The uploaded file.</param>
+            <param name="ssStripBodyAuthors">When True, also blanks author names and initials from tracked changes and comments inside document bodies (DOCX w:author/w:initials, XLSX comment authors, PPTX comment authors) and Excel 365 xl/persons entries. Set to False (default) to preserve document body structure while still stripping all dedicated metadata properties.</param>
             <param name="ssStripFileMetadata">The stripped file and audit metadata.</param>
         </member>
-        <member name="M:OutSystems.NssFileMetadataStripping.IssFileMetadataStripping.MssStripFileMetadata(System.Byte[],OutSystems.NssFileMetadataStripping.RCFileMetadataResultRecord@)">
+        <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.DetectZipCategory(System.Byte[])">
             <summary>
-            Strips metadata from a file. Supports images (EXIF/IPTC/XMP), PDFs, OOXML (DOCX/XLSX/PPTX), and audio/video (MP3/WAV/FLAC/OGG/MP4/MKV/AVI). Unrecognised formats returned unchanged with IsPassthrough=true.
+            Routes a ZIP-based file to its correct strip path based on the <c>mimetype</c>
+            entry. ODF, EPUB, and ORA all use ZIP with an uncompressed <c>mimetype</c> entry
+            identifying the format; anything without a recognised mimetype is treated as
+            Office Open XML (DOCX / XLSX / PPTX / …).
             </summary>
-            <param name="ssRawFile">The uploaded file in any supported format: images (JPEG, PNG, TIFF, WebP, etc.), PDF, Office documents (DOCX, XLSX, PPTX), or audio/video (MP3, WAV, MP4, etc.).</param>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.ReadZipMimetype(System.Byte[])">
+            <summary>
+            Reads the plain-text <c>mimetype</c> entry from a ZIP archive, if present.
+            Returns <see langword="null"/> when the entry is missing or unreadable.
+            </summary>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.IsHeifOrAvifBrand(System.Byte[])">
+            <summary>
+            Returns true when the ISO Base Media ftyp major brand identifies a
+            HEIC, HEIF, or AVIF image. These formats share the ISOBMFF container with MP4/MOV
+            and must be routed to the image path, not the audio/video path.
+            </summary>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.StripHdrCommentLines(System.Byte[])">
+            <summary>Removes encoder-injected comment lines from a Radiance HDR byte stream.
+            Strips every '#' line that is not a '#?' magic marker. The resolution string
+            and binary pixel data are preserved verbatim.</summary>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.RemoveNamespacedAttributes(ImageMagick.IMagickImage{System.Byte})">
+            <summary>Removes attributes with dpx:/cin: namespace prefixes that survive Strip().</summary>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.StripSvgMetadata(System.Byte[])">
+            <summary>Strips XML text nodes (&lt;title&gt;, &lt;desc&gt;, &lt;metadata&gt;) from an SVG document.</summary>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.IsSvgFile(System.Byte[])">
+            <summary>Detects SVG by byte inspection (start with '&lt;' and contain '&lt;svg' within the first 4 KB).</summary>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.IsDibFile(System.Byte[])">
+            <summary>Detects DIB (BMP without the 14-byte BITMAPFILEHEADER) by validating the
+            BITMAPINFOHEADER: header size at bytes 0–3 is one of {40, 52, 56, 108, 124}, planes=1
+            at bytes 12–13, and bit-count at bytes 14–15 is a valid depth (1/4/8/16/24/32).</summary>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.FindOoxmlThumbnailPath(System.IO.Packaging.Package)">
+            <summary>Returns the ZIP entry path of the OOXML embedded thumbnail image, or null if none.</summary>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.RemoveOoxmlThumbnailRelationship(System.IO.Compression.ZipArchive,System.String)">
+            <summary>Removes the thumbnail relationship from _rels/.rels after the thumbnail entry is deleted.</summary>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.StartsWithXmlAngleBracket(System.Byte[])">
+            <summary>
+            Returns true when the byte buffer looks like an XML document — after an
+            optional UTF-8 BOM and leading whitespace, the first non-whitespace byte is
+            '&lt;'. Used as a cheap prefilter for the Flat ODF and WordML byte-scanners.
+            </summary>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.StripEpubMetadata(System.Byte[])">
+            <summary>Strips Dublin Core metadata (dc:*) and OPF meta refinements from the OPF package document.</summary>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.SanitiseEpubOpfPath(System.String)">
+            <summary>Rejects OPF paths containing traversal segments so the output archive
+            cannot be turned into a Zip Slip payload by a crafted EPUB.</summary>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.StripOraMetadata(System.Byte[])">
+            <summary>Strips user-controlled name/description attributes from stack.xml.</summary>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.IssFileMetadataStripping.MssStripFileMetadata(System.Byte[],System.Boolean,OutSystems.NssFileMetadataStripping.RCFileMetadataResultRecord@)">
+            <summary>
+            Strips embedded metadata from a file and returns the cleaned binary. Supports images (EXIF, IPTC, XMP — JPEG, PNG, TIFF, WebP, AVIF, HEIC, and 100+ formats), PDFs (Info dictionary, XMP catalog stream, and annotation Author fields), Office Open XML documents (DOCX, XLSX, PPTX — core properties including LastPrinted/Identifier/Version, application properties, custom properties, embedded thumbnail; and optionally author names from tracked changes, comments, and xl/persons entries when StripBodyAuthors is true), legacy binary Office (DOC, DOT, XLS, XLT, PPT, POT, PPS — SummaryInformation and DocumentSummaryInformation streams), RTF (info-group control words), ODF documents (ODT, ODS, ODP), EPUB (Dublin Core in the OPF), ORA (stack.xml name/description), SVG (title/desc/metadata elements), and audio/video files (MP3, WAV, FLAC, OGG Vorbis/Opus, MP4, MKV, AVI, MOV, WebM, WMA, WMV, M4V, M4A, M4B, 3GP, 3G2, AIFF/AIFC, APE, WavPack, MPC). Unrecognised formats (TXT, CSV, JSON, HTML, etc.) are returned unchanged with IsPassthrough set to true.
+            </summary>
+            <param name="ssRawFile">The uploaded file in any supported format: images (JPEG, PNG, TIFF, WebP, AVIF, HEIC, etc.), PDF, Office documents (DOCX, XLSX, PPTX; DOC, XLS, PPT and templates), RTF, ODF (ODT, ODS, ODP), EPUB, ORA, SVG, or audio/video (MP3, WAV, MP4, MKV, AVI, MOV, etc.).</param>
+            <param name="ssStripBodyAuthors">When True, also blanks author names and initials from tracked changes and comments inside document bodies (DOCX w:author/w:initials, XLSX comment authors, PPTX comment authors) and Excel 365 xl/persons entries. Set to False (default) to preserve document body structure while still stripping all dedicated metadata properties.</param>
             <param name="ssStripFileMetadata">The stripped file and audit metadata. CleanFile is safe to forward to AI APIs. ExtractedMetadata contains the removed entries as JSON. RemovedEntryCount and IsPassthrough support audit logging.</param>
         </member>
         <member name="T:OutSystems.NssFileMetadataStripping.STFileMetadataResultStructure">

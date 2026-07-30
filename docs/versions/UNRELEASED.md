@@ -21,5 +21,3 @@ Changes in progress — not yet published to OutSystems Forge.
 ## Removed
 
 *(nothing yet)*
-
----

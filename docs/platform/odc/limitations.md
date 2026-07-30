@@ -10,8 +10,11 @@ ICC profiles - removed with image metadata; sRGB fallback.
 Memory - no size limit; entire file loaded into memory.
 Unreadable files - encrypted or corrupted files returned unchanged; ExtractedMetadata includes a processingError note.
 Body authors - stripped only when StripBodyAuthors = True.
-Excel threaded comments - xl/threadedComments/ retains author names; not stripped.
+Excel threaded comments - xl/threadedComments/ retains author names.
 PDF embedded images - retain their own EXIF; not processed.
-VBA macros - author data in vbaProject.bin not stripped.
-Digital signatures - signer identity not stripped.
-TIFF EXIF - always stripped; count reflects only metadata present at upload. Some encoders drop EXIF silently. XMP and Comment captured.
+VBA macros (vbaProject.bin) and digital signatures - not stripped.
+HEIC / HEIF - transcoded to JPEG; x265 HEVC is GPL-licensed. transcodedFormat key set.
+APNG - reading fixed; writing needs ffmpeg. Without ffmpeg, output is JPEG.
+DICOM - PHI tags (patient name, ID, dates) survive; no DICOM SDK bundled.
+Animated WebP - per-frame metadata survives; libwebpmux native library not bundled.
+WBMP - no reliable magic bytes; returned as passthrough.

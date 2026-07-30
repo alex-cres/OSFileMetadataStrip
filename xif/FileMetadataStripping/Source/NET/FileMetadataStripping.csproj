@@ -82,6 +82,14 @@
       <HintPath>bin\PdfSharp.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="OpenMcdf">
+      <HintPath>bin\OpenMcdf.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="OpenMcdf.Ole">
+      <HintPath>bin\OpenMcdf.Ole.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="System.IO.Packaging">
       <HintPath>bin\System.IO.Packaging.dll</HintPath>
       <Private>False</Private>
@@ -143,6 +151,33 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="FileMetadataStripping.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FileMetadataStripping.Images.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FileMetadataStripping.Documents.Pdf.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FileMetadataStripping.Documents.OpenXml.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FileMetadataStripping.Documents.LegacyOffice.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FileMetadataStripping.Documents.Rtf.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FileMetadataStripping.Documents.Odf.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FileMetadataStripping.Documents.Epub.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FileMetadataStripping.Documents.Ora.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FileMetadataStripping.Media.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Interface.cs">
