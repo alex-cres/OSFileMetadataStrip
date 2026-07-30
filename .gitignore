@@ -8,7 +8,11 @@
 **/publish/
 *.zip
 
+# OutSystems Application Pack (Service Studio export for O11 Forge)
+*.oap
+
 # Generated sample files
 tools/GenerateSamples/output/
 
-xif/Backups/
+# Integration Studio backup snapshots (per-save timestamped copies of source/csproj/dll)
+xif/**/Backups/
