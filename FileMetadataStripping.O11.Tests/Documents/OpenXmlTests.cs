@@ -536,4 +536,233 @@ public class OpenXmlTests
         Assert.Contains("removed",   result.ExtractedMetadata);
         Assert.True(result.RemovedEntryCount >= 1);
     }
+
+    // ── OOXML template / macro-enabled variants ──────────────────────────────────────
+    // All eleven variants share the ZIP → DetectZipCategory → OpenXml → StripOpenXmlMetadata
+    // pipeline. The strip path operates on docProps/*.xml regardless of the main-part
+    // content type, so each test asserts the same contract:
+    //   - not treated as passthrough
+    //   - creator captured in ExtractedMetadata
+    //   - creator cleared in the output package
+    //   - RemovedEntryCount > 0
+
+    // .docm — Word 2007+ macro-enabled document
+    [Fact]
+    public void StripFileMetadata_DocmVariant_CreatorClearedAndAudited()
+    {
+        var input = TestHelpers.CreateOoxmlVariant(
+            "/word/document.xml",
+            "application/vnd.ms-word.document.macroEnabled.main+xml",
+            creator: "Docm Author");
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.False(result.IsPassthrough);
+        Assert.True(result.RemovedEntryCount > 0);
+        Assert.Contains("creator", result.ExtractedMetadata);
+        Assert.Contains("Docm Author", result.ExtractedMetadata);
+        using var ms = new MemoryStream(result.CleanFile);
+        using var package = Package.Open(ms, FileMode.Open, FileAccess.Read);
+        Assert.Null(package.PackageProperties.Creator);
+    }
+
+    // .dotx — Word 2007+ template
+    [Fact]
+    public void StripFileMetadata_DotxVariant_CreatorClearedAndAudited()
+    {
+        var input = TestHelpers.CreateOoxmlVariant(
+            "/word/document.xml",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml",
+            creator: "Dotx Author");
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.False(result.IsPassthrough);
+        Assert.True(result.RemovedEntryCount > 0);
+        Assert.Contains("creator", result.ExtractedMetadata);
+        Assert.Contains("Dotx Author", result.ExtractedMetadata);
+        using var ms = new MemoryStream(result.CleanFile);
+        using var package = Package.Open(ms, FileMode.Open, FileAccess.Read);
+        Assert.Null(package.PackageProperties.Creator);
+    }
+
+    // .dotm — Word 2007+ macro-enabled template
+    [Fact]
+    public void StripFileMetadata_DotmVariant_CreatorClearedAndAudited()
+    {
+        var input = TestHelpers.CreateOoxmlVariant(
+            "/word/document.xml",
+            "application/vnd.ms-word.template.macroEnabled.main+xml",
+            creator: "Dotm Author");
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.False(result.IsPassthrough);
+        Assert.True(result.RemovedEntryCount > 0);
+        Assert.Contains("creator", result.ExtractedMetadata);
+        Assert.Contains("Dotm Author", result.ExtractedMetadata);
+        using var ms = new MemoryStream(result.CleanFile);
+        using var package = Package.Open(ms, FileMode.Open, FileAccess.Read);
+        Assert.Null(package.PackageProperties.Creator);
+    }
+
+    // .xlsm — Excel 2007+ macro-enabled workbook
+    [Fact]
+    public void StripFileMetadata_XlsmVariant_CreatorClearedAndAudited()
+    {
+        var input = TestHelpers.CreateOoxmlVariant(
+            "/xl/workbook.xml",
+            "application/vnd.ms-excel.sheet.macroEnabled.main+xml",
+            creator: "Xlsm Author");
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.False(result.IsPassthrough);
+        Assert.True(result.RemovedEntryCount > 0);
+        Assert.Contains("creator", result.ExtractedMetadata);
+        Assert.Contains("Xlsm Author", result.ExtractedMetadata);
+        using var ms = new MemoryStream(result.CleanFile);
+        using var package = Package.Open(ms, FileMode.Open, FileAccess.Read);
+        Assert.Null(package.PackageProperties.Creator);
+    }
+
+    // .xltx — Excel 2007+ template
+    [Fact]
+    public void StripFileMetadata_XltxVariant_CreatorClearedAndAudited()
+    {
+        var input = TestHelpers.CreateOoxmlVariant(
+            "/xl/workbook.xml",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.template.main+xml",
+            creator: "Xltx Author");
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.False(result.IsPassthrough);
+        Assert.True(result.RemovedEntryCount > 0);
+        Assert.Contains("creator", result.ExtractedMetadata);
+        Assert.Contains("Xltx Author", result.ExtractedMetadata);
+        using var ms = new MemoryStream(result.CleanFile);
+        using var package = Package.Open(ms, FileMode.Open, FileAccess.Read);
+        Assert.Null(package.PackageProperties.Creator);
+    }
+
+    // .xltm — Excel 2007+ macro-enabled template
+    [Fact]
+    public void StripFileMetadata_XltmVariant_CreatorClearedAndAudited()
+    {
+        var input = TestHelpers.CreateOoxmlVariant(
+            "/xl/workbook.xml",
+            "application/vnd.ms-excel.template.macroEnabled.main+xml",
+            creator: "Xltm Author");
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.False(result.IsPassthrough);
+        Assert.True(result.RemovedEntryCount > 0);
+        Assert.Contains("creator", result.ExtractedMetadata);
+        Assert.Contains("Xltm Author", result.ExtractedMetadata);
+        using var ms = new MemoryStream(result.CleanFile);
+        using var package = Package.Open(ms, FileMode.Open, FileAccess.Read);
+        Assert.Null(package.PackageProperties.Creator);
+    }
+
+    // .pptm — PowerPoint 2007+ macro-enabled presentation
+    [Fact]
+    public void StripFileMetadata_PptmVariant_CreatorClearedAndAudited()
+    {
+        var input = TestHelpers.CreateOoxmlVariant(
+            "/ppt/presentation.xml",
+            "application/vnd.ms-powerpoint.presentation.macroEnabled.main+xml",
+            creator: "Pptm Author");
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.False(result.IsPassthrough);
+        Assert.True(result.RemovedEntryCount > 0);
+        Assert.Contains("creator", result.ExtractedMetadata);
+        Assert.Contains("Pptm Author", result.ExtractedMetadata);
+        using var ms = new MemoryStream(result.CleanFile);
+        using var package = Package.Open(ms, FileMode.Open, FileAccess.Read);
+        Assert.Null(package.PackageProperties.Creator);
+    }
+
+    // .potx — PowerPoint 2007+ template
+    [Fact]
+    public void StripFileMetadata_PotxVariant_CreatorClearedAndAudited()
+    {
+        var input = TestHelpers.CreateOoxmlVariant(
+            "/ppt/presentation.xml",
+            "application/vnd.openxmlformats-officedocument.presentationml.template.main+xml",
+            creator: "Potx Author");
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.False(result.IsPassthrough);
+        Assert.True(result.RemovedEntryCount > 0);
+        Assert.Contains("creator", result.ExtractedMetadata);
+        Assert.Contains("Potx Author", result.ExtractedMetadata);
+        using var ms = new MemoryStream(result.CleanFile);
+        using var package = Package.Open(ms, FileMode.Open, FileAccess.Read);
+        Assert.Null(package.PackageProperties.Creator);
+    }
+
+    // .potm — PowerPoint 2007+ macro-enabled template
+    [Fact]
+    public void StripFileMetadata_PotmVariant_CreatorClearedAndAudited()
+    {
+        var input = TestHelpers.CreateOoxmlVariant(
+            "/ppt/presentation.xml",
+            "application/vnd.ms-powerpoint.template.macroEnabled.main+xml",
+            creator: "Potm Author");
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.False(result.IsPassthrough);
+        Assert.True(result.RemovedEntryCount > 0);
+        Assert.Contains("creator", result.ExtractedMetadata);
+        Assert.Contains("Potm Author", result.ExtractedMetadata);
+        using var ms = new MemoryStream(result.CleanFile);
+        using var package = Package.Open(ms, FileMode.Open, FileAccess.Read);
+        Assert.Null(package.PackageProperties.Creator);
+    }
+
+    // .ppsx — PowerPoint 2007+ slideshow
+    [Fact]
+    public void StripFileMetadata_PpsxVariant_CreatorClearedAndAudited()
+    {
+        var input = TestHelpers.CreateOoxmlVariant(
+            "/ppt/presentation.xml",
+            "application/vnd.openxmlformats-officedocument.presentationml.slideshow.main+xml",
+            creator: "Ppsx Author");
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.False(result.IsPassthrough);
+        Assert.True(result.RemovedEntryCount > 0);
+        Assert.Contains("creator", result.ExtractedMetadata);
+        Assert.Contains("Ppsx Author", result.ExtractedMetadata);
+        using var ms = new MemoryStream(result.CleanFile);
+        using var package = Package.Open(ms, FileMode.Open, FileAccess.Read);
+        Assert.Null(package.PackageProperties.Creator);
+    }
+
+    // .ppsm — PowerPoint 2007+ macro-enabled slideshow
+    [Fact]
+    public void StripFileMetadata_PpsmVariant_CreatorClearedAndAudited()
+    {
+        var input = TestHelpers.CreateOoxmlVariant(
+            "/ppt/presentation.xml",
+            "application/vnd.ms-powerpoint.slideshow.macroEnabled.main+xml",
+            creator: "Ppsm Author");
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.False(result.IsPassthrough);
+        Assert.True(result.RemovedEntryCount > 0);
+        Assert.Contains("creator", result.ExtractedMetadata);
+        Assert.Contains("Ppsm Author", result.ExtractedMetadata);
+        using var ms = new MemoryStream(result.CleanFile);
+        using var package = Package.Open(ms, FileMode.Open, FileAccess.Read);
+        Assert.Null(package.PackageProperties.Creator);
+    }
 }

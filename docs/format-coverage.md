@@ -44,12 +44,13 @@ Dedicated (non-Magick.NET) strip paths — SVG, EPUB, ORA, CFBF, ODF, OOXML, PDF
 
 ## 🔴 Urgent priorities (next round of work)
 
-The following formats fall through to passthrough today, leaking metadata that is otherwise stripped for their modern counterparts. All of them are one click away from any LibreOffice / Microsoft Office user's **Save As** dialog. Details, magic bytes, and implementation notes are in the [Gaps in `DetectCategory`](#gaps-in-detectcategory--formats-that-fall-to-passthrough-today) section below.
+**None open** — all previously-tracked urgent-priority format gaps have been closed.
 
-| Priority | Format group | Extensions | Why urgent |
-|:--------:|--------------|-----------|------------|
-| 🟡 P3 | **OOXML template / macro-enabled variants** | `.dotx`, `.dotm`, `.xltx`, `.xltm`, `.potx`, `.potm`, `.ppsx`, `.ppsm`, `.pptm`, `.xlsm`, `.docm` | Almost certainly already handled by the existing OOXML strip path, but not verified by tests. |
-| 🟡 P3 | **ODF template / drawing variants** | `.ott`, `.ots`, `.otp`, `.odg`, `.otg`, `.odc`, `.odf`, `.odb`, `.odi` | Same — `IsOdfFormat` already matches these mimetypes; untested. |
+The most recent round covered the ODF template / drawing / chart / formula / database / image variants (`.ott`, `.ots`, `.otp`, `.odg`, `.otg`, `.odc`, `.odf`, `.odb`, `.odi`) via nine dedicated `[Fact]` tests in `OdfTests.cs`; `IsOdfFormat` already routed them through the shared `application/vnd.oasis.opendocument.*` prefix match, and each test now verifies the shared strip path clears `dc:creator` on every variant. See the "Removed / closed" notes below for the full history of urgent-priority items that have been resolved.
+
+> **OOXML template / macro-enabled variants** — closed. Eleven dedicated `[Fact]` tests in `OpenXmlTests.cs` (one per variant: `.docm`, `.dotx`, `.dotm`, `.xlsm`, `.xltx`, `.xltm`, `.pptm`, `.potx`, `.potm`, `.ppsx`, `.ppsm`) verify the shared OOXML strip path clears `dc:creator` on every variant.
+
+> **ODF template / drawing / chart / formula / database / image variants** — closed. Nine dedicated `[Fact]` tests in `OdfTests.cs` (one per variant: `.ott`, `.ots`, `.otp`, `.odg`, `.otg`, `.odc`, `.odf`, `.odb`, `.odi`) verify the shared ODF strip path — routed through the `application/vnd.oasis.opendocument.*` mimetype prefix match — clears `dc:creator` on every variant.
 
 > **Flat ODF + Word 2003 XML** — moved out of the urgent tier. Flat ODF (`.fodt`, `.fods`, `.fodp`) is detected by the `<office:document>` root in the OASIS office namespace and routed through the shared `ExtractAndClearOdfMetadata` helper. Word 2003 XML (`.xml` — WordProcessingML) is detected by the `<w:wordDocument>` root in the `http://schemas.microsoft.com/office/word/2003/wordml` namespace and strips `<o:DocumentProperties>` children, removes `<o:CustomDocumentProperties>` children, and blanks tracked-change / comment `w:author` / `aml:author` attributes when `StripBodyAuthors = True`. No new NuGet — both paths reuse `System.Xml.Linq`.
 
@@ -239,9 +240,9 @@ Legend for this section:
 | Word (macro-free) | `.docx` | `application/vnd.openxmlformats-officedocument.wordprocessingml.document` | ✅ | ✅ | `OpenXmlTests.cs` — core / app / custom properties + `docProps/thumbnail.*` + tracked-change / comment authors (opt-in). |
 | Excel (macro-free) | `.xlsx` | `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` | ✅ | ✅ | Same code path. `xl/persons/person.xml` (Excel 365 threaded comment authors) covered under `StripBodyAuthors = True`. |
 | PowerPoint (macro-free) | `.pptx` | `application/vnd.openxmlformats-officedocument.presentationml.presentation` | ✅ | ✅ | Same code path. `ppt/commentAuthors.xml` covered under `StripBodyAuthors = True`. |
-| Word template / macro-enabled | `.dotx`, `.dotm`, `.docm` | matching OOXML mimetypes | ✅ | ⚠️ | Routed via the ZIP-mimetype router; the OOXML strip path handles them identically. Not yet exercised by dedicated tests. |
-| Excel template / macro-enabled | `.xltx`, `.xltm`, `.xlsm` | matching OOXML mimetypes | ✅ | ⚠️ | Same as above. |
-| PowerPoint template / show / macro | `.potx`, `.potm`, `.ppsx`, `.ppsm`, `.pptm` | matching OOXML mimetypes | ✅ | ⚠️ | Same as above. |
+| Word template / macro-enabled | `.dotx`, `.dotm`, `.docm` | matching OOXML mimetypes | ✅ | ✅ | `OpenXmlTests.cs` — one dedicated `[Fact]` per variant verifies the shared OOXML strip path clears `dc:creator` and captures it in `ExtractedMetadata`. |
+| Excel template / macro-enabled | `.xltx`, `.xltm`, `.xlsm` | matching OOXML mimetypes | ✅ | ✅ | Same code path; one dedicated `[Fact]` per variant in `OpenXmlTests.cs`. |
+| PowerPoint template / show / macro | `.potx`, `.potm`, `.ppsx`, `.ppsm`, `.pptm` | matching OOXML mimetypes | ✅ | ✅ | Same code path; one dedicated `[Fact]` per variant in `OpenXmlTests.cs`. |
 | Visio (drawing / macro) | `.vsdx`, `.vsdm`, `.vstx`, `.vstm` | `application/vnd.ms-visio.*` | ⚠️ | ❌ | Uses the ZIP OOXML package layout. Untested; may or may not have a `docProps/core.xml`. |
 
 ### Legacy binary Office pipeline — [OpenMcdf](https://github.com/openmcdf/openmcdf) 3.1.4 + OpenMcdf.Ole 3.1.4-experimental.1 (both MPL-2.0)
@@ -266,15 +267,15 @@ Legend for this section:
 | ODF Text | `.odt` | `application/vnd.oasis.opendocument.text` | ✅ | ✅ | `OdfTests.cs` — dc:* + meta:* elements in `meta.xml`, plus meta:user-defined properties. |
 | ODF Spreadsheet | `.ods` | `application/vnd.oasis.opendocument.spreadsheet` | ✅ | ✅ | Same code path. |
 | ODF Presentation | `.odp` | `application/vnd.oasis.opendocument.presentation` | ✅ | ✅ | Same code path. |
-| ODF Text Template | `.ott` | `application/vnd.oasis.opendocument.text-template` | ✅ | ⚠️ | Routed via the `application/vnd.oasis.opendocument.*` prefix match; identical strip logic. Not yet exercised by a dedicated test. |
-| ODF Spreadsheet Template | `.ots` | `application/vnd.oasis.opendocument.spreadsheet-template` | ✅ | ⚠️ | Same. |
-| ODF Presentation Template | `.otp` | `application/vnd.oasis.opendocument.presentation-template` | ✅ | ⚠️ | Same. |
-| ODF Graphics | `.odg` | `application/vnd.oasis.opendocument.graphics` | ✅ | ⚠️ | Same. |
-| ODF Graphics Template | `.otg` | `application/vnd.oasis.opendocument.graphics-template` | ✅ | ⚠️ | Same. |
-| ODF Chart | `.odc` | `application/vnd.oasis.opendocument.chart` | ✅ | ⚠️ | Same. |
-| ODF Formula | `.odf` | `application/vnd.oasis.opendocument.formula` | ✅ | ⚠️ | Same. |
-| ODF Database | `.odb` | `application/vnd.oasis.opendocument.database` | ✅ | ⚠️ | Same. |
-| ODF Image | `.odi` | `application/vnd.oasis.opendocument.image` | ✅ | ⚠️ | Same. |
+| ODF Text Template | `.ott` | `application/vnd.oasis.opendocument.text-template` | ✅ | ✅ | `OdfTests.cs` — one dedicated `[Fact]` per variant verifies the shared strip path (routed via the `application/vnd.oasis.opendocument.*` prefix match) clears `dc:creator` and captures it in `ExtractedMetadata`. |
+| ODF Spreadsheet Template | `.ots` | `application/vnd.oasis.opendocument.spreadsheet-template` | ✅ | ✅ | Same code path; one dedicated `[Fact]` per variant in `OdfTests.cs`. |
+| ODF Presentation Template | `.otp` | `application/vnd.oasis.opendocument.presentation-template` | ✅ | ✅ | Same code path; one dedicated `[Fact]` per variant in `OdfTests.cs`. |
+| ODF Graphics | `.odg` | `application/vnd.oasis.opendocument.graphics` | ✅ | ✅ | Same code path; one dedicated `[Fact]` per variant in `OdfTests.cs`. |
+| ODF Graphics Template | `.otg` | `application/vnd.oasis.opendocument.graphics-template` | ✅ | ✅ | Same code path; one dedicated `[Fact]` per variant in `OdfTests.cs`. |
+| ODF Chart | `.odc` | `application/vnd.oasis.opendocument.chart` | ✅ | ✅ | Same code path; one dedicated `[Fact]` per variant in `OdfTests.cs`. |
+| ODF Formula | `.odf` | `application/vnd.oasis.opendocument.formula` | ✅ | ✅ | Same code path; one dedicated `[Fact]` per variant in `OdfTests.cs`. |
+| ODF Database | `.odb` | `application/vnd.oasis.opendocument.database` | ✅ | ✅ | Same code path; one dedicated `[Fact]` per variant in `OdfTests.cs`. |
+| ODF Image | `.odi` | `application/vnd.oasis.opendocument.image` | ✅ | ✅ | Same code path; one dedicated `[Fact]` per variant in `OdfTests.cs`. |
 | Flat ODF (single-file XML) | `.fodt`, `.fods`, `.fodp` | `<?xml` + `<office:document>` root in the OASIS office namespace | ✅ | ✅ | `FlatOdfTests.cs` (22 tests). Detected by the root element name — the file is not a ZIP. Parsed with `XDocument.Load` and passed to the shared `ExtractAndClearOdfMetadata` helper, so the strip surface (dc:* + meta:*) is identical to the ZIP-based ODF path. |
 
 ### Word 2003 XML pipeline — `System.Xml.Linq` (BCL)
@@ -403,8 +404,8 @@ These variants should already be handled correctly by the current OOXML / ODF st
 
 | Format group | Extensions | Current code path | Recommendation |
 |--------------|-----------|-------------------|----------------|
-| **OOXML templates and macro-enabled variants** | `.dotx`, `.dotm`, `.xltx`, `.xltm`, `.potx`, `.potm`, `.ppsx`, `.ppsm`, `.pptm`, `.xlsm`, `.docm` | ZIP → `DetectZipCategory` → default OpenXml → same core / app / custom properties + thumbnail strip | Add one test per extension in `OpenXmlTests.cs` — swap the extension into an existing DOCX fixture, run through `_sut`, verify the property is cleared. |
-| **ODF templates and drawings** | `.ott`, `.ots`, `.otp`, `.odg`, `.otg`, `.odc`, `.odf`, `.odb`, `.odi` | ZIP → `IsOdfFormat` matches `application/vnd.oasis.opendocument.*` prefix → `StripOdfMetadata` (which reads `meta.xml`) | Add one test per extension in `OdfTests.cs` — construct a synthetic ODF ZIP with the target mimetype, verify strip. |
+| ~~**OOXML templates and macro-enabled variants**~~ | `.dotx`, `.dotm`, `.xltx`, `.xltm`, `.potx`, `.potm`, `.ppsx`, `.ppsm`, `.pptm`, `.xlsm`, `.docm` | ZIP → `DetectZipCategory` → default OpenXml → same core / app / custom properties + thumbnail strip | ✅ **Done.** Eleven dedicated `[Fact]` tests in `OpenXmlTests.cs` (one per variant) verify the shared strip path via a `CreateOoxmlVariant(mainPartUri, mainContentType, creator)` helper in `TestHelpers.Documents.OpenXml.cs`. |
+| **ODF templates and drawings** | `.ott`, `.ots`, `.otp`, `.odg`, `.otg`, `.odc`, `.odf`, `.odb`, `.odi` | ZIP → `IsOdfFormat` matches `application/vnd.oasis.opendocument.*` prefix → `StripOdfMetadata` (which reads `meta.xml`) | ✅ **Done.** Nine dedicated `[Fact]` tests in `OdfTests.cs` (one per variant) verify the shared strip path via a `CreateOdfVariant(mimetype, creator, title, userDefined)` helper in `TestHelpers.Documents.Odf.cs`. |
 
 ### 🟢 Low — narrow metadata surface, minimal risk
 
@@ -422,9 +423,10 @@ These variants should already be handled correctly by the current OOXML / ODF st
 1. ~~**CFBF (legacy binary Office)**~~ — ✅ Done. `StripCfbfMetadata` handles `.doc`, `.dot`, `.xls`, `.xlt`, `.ppt`, `.pot`, `.pps` in a single pass via OpenMcdf + OpenMcdf.Ole.
 2. ~~**RTF**~~ — ✅ Done. `StripRtfMetadata` blanks every string-bearing `\info` control word via a compiled regex. No NuGet added.
 3. ~~**Flat ODF + Word 2003 XML**~~ — ✅ Done. Flat ODF (`.fodt`, `.fods`, `.fodp`) detected via the `<office:document>` root in the OASIS office namespace and passed through the shared `ExtractAndClearOdfMetadata` helper. Word 2003 XML detected via the `<w:wordDocument>` root in the WordProcessingML namespace and stripped by a dedicated `StripWordMlMetadata` helper (document properties, custom document properties, tracked-change / comment authors under `StripBodyAuthors`).
-4. **Untested OOXML/ODF variants (medium)** — one small test per extension to prove the existing code path handles them.
-5. ~~**Audio detection gaps**~~ — ✅ Done. AIFF / AIFC, APE, WavPack and MPC (SV7 + SV8) added to `DetectCategory` and `GetMediaExtensionHint`; covered by `ExtendedAudioDetectionTests.cs` with two false-positive guards (bare `MP+`, `FORM`+`ILBM`).
-6. ~~**HTML passthrough test**~~ — ✅ Done. `HtmlPassthroughTests.cs` locks in the intentional-passthrough contract: `<meta name="author">`, `<title>` and body content all pass through unchanged with `IsPassthrough = true` and `RemovedEntryCount = 0`.
+4. ~~**OOXML template / macro-enabled variants**~~ — ✅ Done. Eleven dedicated `[Fact]` tests (one per variant: `.docm`, `.dotx`, `.dotm`, `.xlsm`, `.xltx`, `.xltm`, `.pptm`, `.potx`, `.potm`, `.ppsx`, `.ppsm`) in `OpenXmlTests.cs` verify the shared OOXML strip path clears `dc:creator` on every variant.
+5. ~~**Untested ODF variants (medium)**~~ — ✅ Done. Nine dedicated `[Fact]` tests (one per variant: `.ott`, `.ots`, `.otp`, `.odg`, `.otg`, `.odc`, `.odf`, `.odb`, `.odi`) in `OdfTests.cs` verify the shared ODF strip path — routed via the `application/vnd.oasis.opendocument.*` mimetype prefix match — clears `dc:creator` on every variant.
+6. ~~**Audio detection gaps**~~ — ✅ Done. AIFF / AIFC, APE, WavPack and MPC (SV7 + SV8) added to `DetectCategory` and `GetMediaExtensionHint`; covered by `ExtendedAudioDetectionTests.cs` with two false-positive guards (bare `MP+`, `FORM`+`ILBM`).
+7. ~~**HTML passthrough test**~~ — ✅ Done. `HtmlPassthroughTests.cs` locks in the intentional-passthrough contract: `<meta name="author">`, `<title>` and body content all pass through unchanged with `IsPassthrough = true` and `RemovedEntryCount = 0`.
 
 ## How to update this file
 

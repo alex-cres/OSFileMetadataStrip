@@ -12,7 +12,7 @@ Unreadable files - encrypted or corrupted files returned unchanged; ExtractedMet
 Body authors - stripped only when StripBodyAuthors = True.
 Excel threaded comments - xl/threadedComments/ retains author names.
 PDF embedded images - retain their own EXIF; not processed.
-VBA macros and digital signatures - not stripped.
+VBA macros (vbaProject.bin) and digital signatures - not stripped.
 HEIC / HEIF - transcoded to JPEG; x265 HEVC is GPL-licensed. transcodedFormat key set.
 APNG - reading fixed; writing needs ffmpeg. Without ffmpeg, output is JPEG.
 DICOM - PHI tags (patient name, ID, dates) survive; no DICOM SDK bundled.

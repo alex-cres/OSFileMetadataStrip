@@ -173,4 +173,204 @@ public class OdfTests
         XNamespace dc = "http://purl.org/dc/elements/1.1/";
         Assert.True(string.IsNullOrEmpty(xdoc.Descendants(dc + "creator").FirstOrDefault()?.Value));
     }
+
+    // ── ODF template / drawing / chart / formula / database / image variants ────────
+    // All nine variants share the ZIP → DetectZipCategory → Odf → StripOdfMetadata
+    // pipeline. Routing is triggered by any mimetype starting with
+    // "application/vnd.oasis.opendocument.", and the strip path operates on
+    // meta.xml regardless of the specific variant. Each test asserts the same
+    // contract:
+    //   - not treated as passthrough
+    //   - creator captured in ExtractedMetadata
+    //   - creator cleared in meta.xml of the output package
+    //   - RemovedEntryCount > 0
+
+    // .ott — OpenDocument Text Template
+    [Fact]
+    public void StripFileMetadata_OttVariant_CreatorClearedAndAudited()
+    {
+        var input = TestHelpers.CreateOdfVariant(
+            "application/vnd.oasis.opendocument.text-template",
+            creator: "Ott Author");
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.False(result.IsPassthrough);
+        Assert.True(result.RemovedEntryCount > 0);
+        Assert.Contains("creator", result.ExtractedMetadata);
+        Assert.Contains("Ott Author", result.ExtractedMetadata);
+        using var ms  = new MemoryStream(result.CleanFile);
+        using var zip = new ZipArchive(ms, ZipArchiveMode.Read);
+        var xdoc      = XDocument.Load(zip.GetEntry("meta.xml")!.Open());
+        XNamespace dc = "http://purl.org/dc/elements/1.1/";
+        Assert.True(string.IsNullOrEmpty(xdoc.Descendants(dc + "creator").FirstOrDefault()?.Value));
+    }
+
+    // .ots — OpenDocument Spreadsheet Template
+    [Fact]
+    public void StripFileMetadata_OtsVariant_CreatorClearedAndAudited()
+    {
+        var input = TestHelpers.CreateOdfVariant(
+            "application/vnd.oasis.opendocument.spreadsheet-template",
+            creator: "Ots Author");
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.False(result.IsPassthrough);
+        Assert.True(result.RemovedEntryCount > 0);
+        Assert.Contains("creator", result.ExtractedMetadata);
+        Assert.Contains("Ots Author", result.ExtractedMetadata);
+        using var ms  = new MemoryStream(result.CleanFile);
+        using var zip = new ZipArchive(ms, ZipArchiveMode.Read);
+        var xdoc      = XDocument.Load(zip.GetEntry("meta.xml")!.Open());
+        XNamespace dc = "http://purl.org/dc/elements/1.1/";
+        Assert.True(string.IsNullOrEmpty(xdoc.Descendants(dc + "creator").FirstOrDefault()?.Value));
+    }
+
+    // .otp — OpenDocument Presentation Template
+    [Fact]
+    public void StripFileMetadata_OtpVariant_CreatorClearedAndAudited()
+    {
+        var input = TestHelpers.CreateOdfVariant(
+            "application/vnd.oasis.opendocument.presentation-template",
+            creator: "Otp Author");
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.False(result.IsPassthrough);
+        Assert.True(result.RemovedEntryCount > 0);
+        Assert.Contains("creator", result.ExtractedMetadata);
+        Assert.Contains("Otp Author", result.ExtractedMetadata);
+        using var ms  = new MemoryStream(result.CleanFile);
+        using var zip = new ZipArchive(ms, ZipArchiveMode.Read);
+        var xdoc      = XDocument.Load(zip.GetEntry("meta.xml")!.Open());
+        XNamespace dc = "http://purl.org/dc/elements/1.1/";
+        Assert.True(string.IsNullOrEmpty(xdoc.Descendants(dc + "creator").FirstOrDefault()?.Value));
+    }
+
+    // .odg — OpenDocument Drawing
+    [Fact]
+    public void StripFileMetadata_OdgVariant_CreatorClearedAndAudited()
+    {
+        var input = TestHelpers.CreateOdfVariant(
+            "application/vnd.oasis.opendocument.graphics",
+            creator: "Odg Author");
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.False(result.IsPassthrough);
+        Assert.True(result.RemovedEntryCount > 0);
+        Assert.Contains("creator", result.ExtractedMetadata);
+        Assert.Contains("Odg Author", result.ExtractedMetadata);
+        using var ms  = new MemoryStream(result.CleanFile);
+        using var zip = new ZipArchive(ms, ZipArchiveMode.Read);
+        var xdoc      = XDocument.Load(zip.GetEntry("meta.xml")!.Open());
+        XNamespace dc = "http://purl.org/dc/elements/1.1/";
+        Assert.True(string.IsNullOrEmpty(xdoc.Descendants(dc + "creator").FirstOrDefault()?.Value));
+    }
+
+    // .otg — OpenDocument Drawing Template
+    [Fact]
+    public void StripFileMetadata_OtgVariant_CreatorClearedAndAudited()
+    {
+        var input = TestHelpers.CreateOdfVariant(
+            "application/vnd.oasis.opendocument.graphics-template",
+            creator: "Otg Author");
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.False(result.IsPassthrough);
+        Assert.True(result.RemovedEntryCount > 0);
+        Assert.Contains("creator", result.ExtractedMetadata);
+        Assert.Contains("Otg Author", result.ExtractedMetadata);
+        using var ms  = new MemoryStream(result.CleanFile);
+        using var zip = new ZipArchive(ms, ZipArchiveMode.Read);
+        var xdoc      = XDocument.Load(zip.GetEntry("meta.xml")!.Open());
+        XNamespace dc = "http://purl.org/dc/elements/1.1/";
+        Assert.True(string.IsNullOrEmpty(xdoc.Descendants(dc + "creator").FirstOrDefault()?.Value));
+    }
+
+    // .odc — OpenDocument Chart
+    [Fact]
+    public void StripFileMetadata_OdcVariant_CreatorClearedAndAudited()
+    {
+        var input = TestHelpers.CreateOdfVariant(
+            "application/vnd.oasis.opendocument.chart",
+            creator: "Odc Author");
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.False(result.IsPassthrough);
+        Assert.True(result.RemovedEntryCount > 0);
+        Assert.Contains("creator", result.ExtractedMetadata);
+        Assert.Contains("Odc Author", result.ExtractedMetadata);
+        using var ms  = new MemoryStream(result.CleanFile);
+        using var zip = new ZipArchive(ms, ZipArchiveMode.Read);
+        var xdoc      = XDocument.Load(zip.GetEntry("meta.xml")!.Open());
+        XNamespace dc = "http://purl.org/dc/elements/1.1/";
+        Assert.True(string.IsNullOrEmpty(xdoc.Descendants(dc + "creator").FirstOrDefault()?.Value));
+    }
+
+    // .odf — OpenDocument Formula
+    [Fact]
+    public void StripFileMetadata_OdfVariant_CreatorClearedAndAudited()
+    {
+        var input = TestHelpers.CreateOdfVariant(
+            "application/vnd.oasis.opendocument.formula",
+            creator: "Odf Author");
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.False(result.IsPassthrough);
+        Assert.True(result.RemovedEntryCount > 0);
+        Assert.Contains("creator", result.ExtractedMetadata);
+        Assert.Contains("Odf Author", result.ExtractedMetadata);
+        using var ms  = new MemoryStream(result.CleanFile);
+        using var zip = new ZipArchive(ms, ZipArchiveMode.Read);
+        var xdoc      = XDocument.Load(zip.GetEntry("meta.xml")!.Open());
+        XNamespace dc = "http://purl.org/dc/elements/1.1/";
+        Assert.True(string.IsNullOrEmpty(xdoc.Descendants(dc + "creator").FirstOrDefault()?.Value));
+    }
+
+    // .odb — OpenDocument Database
+    [Fact]
+    public void StripFileMetadata_OdbVariant_CreatorClearedAndAudited()
+    {
+        var input = TestHelpers.CreateOdfVariant(
+            "application/vnd.oasis.opendocument.database",
+            creator: "Odb Author");
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.False(result.IsPassthrough);
+        Assert.True(result.RemovedEntryCount > 0);
+        Assert.Contains("creator", result.ExtractedMetadata);
+        Assert.Contains("Odb Author", result.ExtractedMetadata);
+        using var ms  = new MemoryStream(result.CleanFile);
+        using var zip = new ZipArchive(ms, ZipArchiveMode.Read);
+        var xdoc      = XDocument.Load(zip.GetEntry("meta.xml")!.Open());
+        XNamespace dc = "http://purl.org/dc/elements/1.1/";
+        Assert.True(string.IsNullOrEmpty(xdoc.Descendants(dc + "creator").FirstOrDefault()?.Value));
+    }
+
+    // .odi — OpenDocument Image
+    [Fact]
+    public void StripFileMetadata_OdiVariant_CreatorClearedAndAudited()
+    {
+        var input = TestHelpers.CreateOdfVariant(
+            "application/vnd.oasis.opendocument.image",
+            creator: "Odi Author");
+
+        var result = _sut.StripFileMetadata(input, false);
+
+        Assert.False(result.IsPassthrough);
+        Assert.True(result.RemovedEntryCount > 0);
+        Assert.Contains("creator", result.ExtractedMetadata);
+        Assert.Contains("Odi Author", result.ExtractedMetadata);
+        using var ms  = new MemoryStream(result.CleanFile);
+        using var zip = new ZipArchive(ms, ZipArchiveMode.Read);
+        var xdoc      = XDocument.Load(zip.GetEntry("meta.xml")!.Open());
+        XNamespace dc = "http://purl.org/dc/elements/1.1/";
+        Assert.True(string.IsNullOrEmpty(xdoc.Descendants(dc + "creator").FirstOrDefault()?.Value));
+    }
 }

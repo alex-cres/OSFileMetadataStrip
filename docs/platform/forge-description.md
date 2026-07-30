@@ -55,11 +55,11 @@ Every format listed below has an explicit xUnit test in the component's test pro
 
 | RTF | RTF | `\author`, `\title`, `\subject`, `\keywords`, `\comment`, `\operator`, `\company`, `\doccomm`, `\category`, `\hlinkbase`, `\manager` control-word groups in `\info`. Numeric control words preserved. |
 
-| Office documents | DOCX, XLSX, PPTX | Core / app / custom properties + `docProps/thumbnail.*`. Body author stripping (tracked changes, comment authors, Excel 365 xl/persons entries) requires `StripBodyAuthors = True`. |
+| Office documents | DOCX, DOTX, DOCM, DOTM, XLSX, XLTX, XLSM, XLTM, PPTX, POTX, PPSX, PPTM, POTM, PPSM | Core / app / custom properties + `docProps/thumbnail.*`. Body author stripping (tracked changes, comment authors, Excel 365 xl/persons entries) requires `StripBodyAuthors = True`. |
 
 | Legacy binary Office | DOC, DOT, XLS, XLT, PPT, POT, PPS (Word / Excel / PowerPoint 97 – 2003) | `\x05SummaryInformation` stream (Title, Subject, Author, Keywords, Comments, Template, Last-Saved-By, Application) and `\x05DocumentSummaryInformation` stream (Category, Manager, Company, ContentStatus, Language, custom user-defined properties). Detected via the CFBF 8-byte magic; the container is consolidated after deletion so freed sectors are dropped from the output. |
 
-| ODF documents | ODT, ODS, ODP | dc:creator, dc:title, dc:description, dc:subject, meta:initial-creator, meta:generator, meta:editing-cycles, meta:editing-duration, and all meta:user-defined properties |
+| ODF documents | ODT, ODS, ODP, OTT, OTS, OTP, ODG, OTG, ODC, ODF, ODB, ODI | dc:creator, dc:title, dc:description, dc:subject, meta:initial-creator, meta:generator, meta:editing-cycles, meta:editing-duration, and all meta:user-defined properties. Templates (OTT / OTS / OTP / OTG), drawings (ODG), charts (ODC), formulas (ODF), databases (ODB), and images (ODI) share the same strip path — matched via the `application/vnd.oasis.opendocument.*` mimetype prefix. |
 
 | Flat ODF (single-file XML) | FODT, FODS, FODP | Same `dc:*` and `meta:*` elements as the ZIP-based ODF path — detected by the `<office:document>` root in the OASIS office namespace |
 

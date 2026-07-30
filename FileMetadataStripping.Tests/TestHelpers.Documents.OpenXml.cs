@@ -50,6 +50,27 @@ internal static partial class TestHelpers
     }
 
     /// <summary>
+    /// Builds a minimal OOXML package whose main-part content type is <paramref name="mainContentType"/>,
+    /// used to exercise the template (<c>.dotx</c>, <c>.xltx</c>, <c>.potx</c>) and macro-enabled
+    /// (<c>.docm</c>, <c>.xlsm</c>, <c>.pptm</c>, <c>.dotm</c>, <c>.xltm</c>, <c>.potm</c>, <c>.ppsm</c>)
+    /// variants against the shared <c>StripOpenXmlMetadata</c> pipeline. The <c>docProps/core.xml</c>
+    /// creator is populated so a metadata field is available to strip and audit.
+    /// </summary>
+    internal static byte[] CreateOoxmlVariant(string mainPartUri, string mainContentType, string? creator = null)
+    {
+        using var ms = new MemoryStream();
+        using (var package = Package.Open(ms, FileMode.Create, FileAccess.ReadWrite))
+        {
+            var uri = PackUriHelper.CreatePartUri(new Uri(mainPartUri, UriKind.Relative));
+            package.CreatePart(uri, mainContentType);
+            package.CreateRelationship(uri, TargetMode.Internal,
+                "http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument");
+            if (!string.IsNullOrEmpty(creator)) package.PackageProperties.Creator = creator;
+        } // Dispose flushes the ZIP data to the stream before ToArray().
+        return ms.ToArray();
+    }
+
+    /// <summary>
     /// Creates a byte array with ZIP/PK magic bytes followed by invalid content.
     /// System.IO.Packaging.Package.Open will throw when trying to parse this file,
     /// simulating a corrupted or password-protected OOXML file.

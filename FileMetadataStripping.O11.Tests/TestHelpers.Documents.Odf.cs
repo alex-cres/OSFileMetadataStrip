@@ -9,6 +9,24 @@ internal static partial class TestHelpers
 
     internal static byte[] CreateOdt(string? creator = null, string? title = null,
         Dictionary<string, string>? userDefined = null)
+        => CreateOdfVariant("application/vnd.oasis.opendocument.text", creator, title, userDefined);
+
+    /// <summary>
+    /// Builds a minimal ODF ZIP package whose <c>mimetype</c> entry contains
+    /// <paramref name="mimetype"/>. Used to exercise the template
+    /// (<c>.ott</c>, <c>.ots</c>, <c>.otp</c>, <c>.otg</c>) and drawing / chart /
+    /// formula / database / image (<c>.odg</c>, <c>.odc</c>, <c>.odf</c>,
+    /// <c>.odb</c>, <c>.odi</c>) variants against the shared
+    /// <c>StripOdfMetadata</c> pipeline. The <c>meta.xml</c> is populated with a
+    /// <c>&lt;dc:creator&gt;</c>, optional <c>&lt;dc:title&gt;</c>, and optional
+    /// <c>&lt;meta:user-defined&gt;</c> children so metadata is available to strip
+    /// and audit.
+    /// </summary>
+    internal static byte[] CreateOdfVariant(
+        string mimetype,
+        string? creator = null,
+        string? title = null,
+        Dictionary<string, string>? userDefined = null)
     {
         using var ms = new MemoryStream();
         using (var zip = new System.IO.Compression.ZipArchive(
@@ -19,7 +37,7 @@ internal static partial class TestHelpers
                 System.IO.Compression.CompressionLevel.NoCompression);
             using (var s = mimetypeEntry.Open())
             {
-                var bytes = System.Text.Encoding.ASCII.GetBytes("application/vnd.oasis.opendocument.text");
+                var bytes = System.Text.Encoding.ASCII.GetBytes(mimetype);
                 s.Write(bytes, 0, bytes.Length);
             }
 
@@ -50,7 +68,7 @@ internal static partial class TestHelpers
                     new XAttribute(XNamespace.Xmlns + "manifest", mf),
                     new XElement(mf + "file-entry",
                         new XAttribute(mf + "full-path",  "/"),
-                        new XAttribute(mf + "media-type", "application/vnd.oasis.opendocument.text")),
+                        new XAttribute(mf + "media-type", mimetype)),
                     new XElement(mf + "file-entry",
                         new XAttribute(mf + "full-path",  "meta.xml"),
                         new XAttribute(mf + "media-type", "text/xml"))));

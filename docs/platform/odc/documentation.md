@@ -122,7 +122,8 @@ name (author, title, subject, ...). If the same control word appears
 more than once (a rare pattern in annotation trails), every occurrence
 is captured as a JSON array.
 
-Office Open XML (DOCX, XLSX, PPTX)
+Office Open XML (DOCX, DOTX, DOCM, DOTM, XLSX, XLTX, XLSM, XLTM,
+PPTX, POTX, PPSX, PPTM, POTM, PPSM)
 Always strips: core properties (Creator, LastModifiedBy, Created,
 Modified, Title, Subject, Description, Keywords, Category, Revision,
 LastPrinted, Identifier, Version), application properties (Application,
@@ -178,13 +179,18 @@ or corrupt, the original file is returned unchanged and
 ExtractedMetadata contains a processingError key. No exception is
 raised.
 
-ODF (ODT, ODS, ODP)
+ODF (ODT, ODS, ODP, OTT, OTS, OTP, ODG, OTG, ODC, ODF, ODB, ODI)
 Strips: dc:creator, dc:title, dc:description, dc:subject,
 meta:initial-creator, meta:generator, meta:editing-cycles,
 meta:editing-duration, and all meta:user-defined properties.
 Values are recorded in ExtractedMetadata under the keys creator,
 title, description, subject, initialCreator, generator,
 editingCycles, editingDuration, and userDefinedProperties.
+
+Templates (OTT / OTS / OTP / OTG), drawings (ODG), charts (ODC),
+formulas (ODF), databases (ODB), and images (ODI) are matched via
+the application/vnd.oasis.opendocument.* mimetype prefix and use
+the same strip path as ODT / ODS / ODP.
 
 Flat ODF (FODT, FODS, FODP)
 Single-file XML variant of ODF. Detected by the <office:document>
