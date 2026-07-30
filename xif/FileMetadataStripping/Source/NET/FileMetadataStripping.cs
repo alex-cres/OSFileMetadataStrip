@@ -22,11 +22,17 @@ namespace OutSystems.NssFileMetadataStripping {
 		// ── Public entry point + top-level dispatch. ──────────────────────────────
 		//
 		// Format-specific strip pipelines live in the sibling partial-class files:
-		//   FileMetadataStripping.Images.cs    — image + SVG strip pipelines
-		//   FileMetadataStripping.Documents.cs — PDF, OOXML, ODF, EPUB, ORA, CFBF, RTF
-		//   FileMetadataStripping.Media.cs     — audio / video via TagLibSharp
+		//   FileMetadataStripping.Images.cs                — image + SVG strip pipelines
+		//   FileMetadataStripping.Documents.Pdf.cs          — PDF (PDFsharp)
+		//   FileMetadataStripping.Documents.OpenXml.cs      — DOCX / XLSX / PPTX + Word 2003 XML
+		//   FileMetadataStripping.Documents.LegacyOffice.cs — DOC / XLS / PPT (CFBF / OLE)
+		//   FileMetadataStripping.Documents.Rtf.cs          — RTF
+		//   FileMetadataStripping.Documents.Odf.cs          — ODT / ODS / ODP + Flat ODF
+		//   FileMetadataStripping.Documents.Epub.cs         — EPUB
+		//   FileMetadataStripping.Documents.Ora.cs          — ORA (OpenRaster)
+		//   FileMetadataStripping.Media.cs                  — audio / video via TagLibSharp
 
-		private enum FileCategory { Image, Svg, Pdf, Rtf, OpenXml, LegacyOffice, Odf, Epub, Ora, Media, Passthrough }
+		private enum FileCategory { Image, Svg, Pdf, Rtf, OpenXml, WordMl, LegacyOffice, Odf, FlatOdf, Epub, Ora, Media, Passthrough }
 
 		/// <summary>
 		/// Strips metadata from a file. Supports images (EXIF/IPTC/XMP), PDFs, OOXML (DOCX/XLSX/PPTX), legacy binary Office (DOC/XLS/PPT and templates), RTF, ODF, EPUB, ORA, SVG, and audio/video. Unrecognised formats returned unchanged with IsPassthrough=true.
@@ -43,8 +49,10 @@ namespace OutSystems.NssFileMetadataStripping {
 				FileCategory.Pdf          => StripPdfMetadata(ssRawFile),
 				FileCategory.Rtf          => StripRtfMetadata(ssRawFile),
 				FileCategory.OpenXml      => StripOpenXmlMetadata(ssRawFile, ssStripBodyAuthors),
+				FileCategory.WordMl       => StripWordMlMetadata(ssRawFile, ssStripBodyAuthors),
 				FileCategory.LegacyOffice => StripCfbfMetadata(ssRawFile),
 				FileCategory.Odf          => StripOdfMetadata(ssRawFile),
+				FileCategory.FlatOdf      => StripFlatOdfMetadata(ssRawFile),
 				FileCategory.Epub         => StripEpubMetadata(ssRawFile),
 				FileCategory.Ora          => StripOraMetadata(ssRawFile),
 				FileCategory.Media        => StripMediaMetadata(ssRawFile),
@@ -99,6 +107,17 @@ namespace OutSystems.NssFileMetadataStripping {
 			// BITMAPFILEHEADER. Also metadata-free — passthrough.
 			if (IsDibFile(rawFile))
 				return FileCategory.Passthrough;
+
+			// Flat ODF (.fodt / .fods / .fodp): single-file XML variant of ODF whose root
+			// element is <office:document> in the OASIS namespace. Detected before SVG so
+			// Flat ODF documents that mention <svg> in the body aren't misrouted.
+			if (IsFlatOdfFile(rawFile))
+				return FileCategory.FlatOdf;
+
+			// Word 2003 XML (.xml): WordProcessingML root <w:wordDocument> with the
+			// Microsoft 2003 WordML namespace and an <o:DocumentProperties> block.
+			if (IsWordMlFile(rawFile))
+				return FileCategory.WordMl;
 
 			// SVG: XML-based vector image. Detect before Magick.NET so we can strip XML text
 			// nodes (<title>, <desc>, <metadata>) that survive raster-oriented Strip() calls.

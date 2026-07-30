@@ -48,9 +48,10 @@ The following formats fall through to passthrough today, leaking metadata that i
 
 | Priority | Format group | Extensions | Why urgent |
 |:--------:|--------------|-----------|------------|
-| � P2 | **Flat ODF + Word 2003 XML** | `.fodt`, `.fods`, `.fodp`, `.xml` (Word 2003) | Single-file XML variants of ODF/DOCX; miss our current ZIP-mimetype detector. |
 | 🟡 P3 | **OOXML template / macro-enabled variants** | `.dotx`, `.dotm`, `.xltx`, `.xltm`, `.potx`, `.potm`, `.ppsx`, `.ppsm`, `.pptm`, `.xlsm`, `.docm` | Almost certainly already handled by the existing OOXML strip path, but not verified by tests. |
 | 🟡 P3 | **ODF template / drawing variants** | `.ott`, `.ots`, `.otp`, `.odg`, `.otg`, `.odc`, `.odf`, `.odb`, `.odi` | Same — `IsOdfFormat` already matches these mimetypes; untested. |
+
+> **Flat ODF + Word 2003 XML** — moved out of the urgent tier. Flat ODF (`.fodt`, `.fods`, `.fodp`) is detected by the `<office:document>` root in the OASIS office namespace and routed through the shared `ExtractAndClearOdfMetadata` helper. Word 2003 XML (`.xml` — WordProcessingML) is detected by the `<w:wordDocument>` root in the `http://schemas.microsoft.com/office/word/2003/wordml` namespace and strips `<o:DocumentProperties>` children, removes `<o:CustomDocumentProperties>` children, and blanks tracked-change / comment `w:author` / `aml:author` attributes when `StripBodyAuthors = True`. No new NuGet — both paths reuse `System.Xml.Linq`.
 
 > **CFBF (legacy binary Office)** — moved out of the urgent tier. Covered by `StripCfbfMetadata` (OpenMcdf + OpenMcdf.Ole); all seven extensions (`.doc`, `.dot`, `.xls`, `.xlt`, `.ppt`, `.pot`, `.pps`) share the same code path.
 
@@ -274,7 +275,13 @@ Legend for this section:
 | ODF Formula | `.odf` | `application/vnd.oasis.opendocument.formula` | ✅ | ⚠️ | Same. |
 | ODF Database | `.odb` | `application/vnd.oasis.opendocument.database` | ✅ | ⚠️ | Same. |
 | ODF Image | `.odi` | `application/vnd.oasis.opendocument.image` | ✅ | ⚠️ | Same. |
-| Flat ODF (single-file XML) | `.fodt`, `.fods`, `.fodp` | `<?xml` + `<office:document>` root | ❌ | ❌ | Not a ZIP — the current router misses these. **Tracked in the urgent priorities.** |
+| Flat ODF (single-file XML) | `.fodt`, `.fods`, `.fodp` | `<?xml` + `<office:document>` root in the OASIS office namespace | ✅ | ✅ | `FlatOdfTests.cs` (22 tests). Detected by the root element name — the file is not a ZIP. Parsed with `XDocument.Load` and passed to the shared `ExtractAndClearOdfMetadata` helper, so the strip surface (dc:* + meta:*) is identical to the ZIP-based ODF path. |
+
+### Word 2003 XML pipeline — `System.Xml.Linq` (BCL)
+
+| Format | Extensions | Root element | Detected | Tested | Notes |
+|--------|-----------|--------------|:--------:|:------:|-------|
+| Word 2003 XML (WordProcessingML) | `.xml` | `<w:wordDocument>` in `http://schemas.microsoft.com/office/word/2003/wordml` | ✅ | ✅ | `WordMlTests.cs` (30 tests). Strips every child of `<o:DocumentProperties>` (Author, LastAuthor, Company, Manager, Title, Subject, Keywords, Description, Category, Template, HyperlinkBase, Application, AppVersion, TotalTime, LastPrinted, Created, LastSaved, revision counters), removes every child of `<o:CustomDocumentProperties>`, and when `StripBodyAuthors = True` also blanks the `w:author` / `aml:author` attributes on tracked-change and comment elements. Removed values captured in `ExtractedMetadata` under `documentProperties`, `customDocumentProperties`, `bodyAuthors`. |
 
 ### EPUB pipeline — `System.IO.Compression` + `System.Xml.Linq` (BCL)
 
@@ -385,8 +392,8 @@ These formats every LibreOffice / Microsoft Office user can produce with a singl
 
 | Format | Extensions | Magic | Metadata surface | Recommendation |
 |--------|-----------|-------|------------------|----------------|
-| **Flat ODF** (single-file XML variants) | `.fodt`, `.fods`, `.fodp` | `<?xml` + `<office:document` (not a ZIP) | Same `office:meta` block as the ZIP-based ODF — dc:creator, dc:title, meta:initial-creator, meta:editing-cycles, etc. | Extend the SVG XML detection into a shared `IsXmlFile` router that also catches Flat ODF, then reuse `ExtractAndClearOdfMetadata` on the parsed XDocument. |
-| **Word 2003 XML** | `.xml` (Word 2003 XML format) | `<?xml` + `<w:wordDocument` in the first 4 KB | `<o:DocumentProperties>` node — Author, LastAuthor, Manager, Company, Template, Revision, Version, LastPrinted | Same XML router. Route to a new `StripWordMlMetadata` helper. |
+| **Flat ODF** (single-file XML variants) | `.fodt`, `.fods`, `.fodp` | `<?xml` + `<office:document` (not a ZIP) | Same `office:meta` block as the ZIP-based ODF — dc:creator, dc:title, meta:initial-creator, meta:editing-cycles, etc. | ✅ **Done.** Detected by the `<office:document>` root in the OASIS office namespace; parsed with `XDocument.Load` and reuses `ExtractAndClearOdfMetadata`. See the [Flat ODF row](#odf-pipeline--systemiocompression--systemxmllinq-bcl). |
+| **Word 2003 XML** | `.xml` (Word 2003 XML format) | `<?xml` + `<w:wordDocument` in the first 4 KB | `<o:DocumentProperties>` node — Author, LastAuthor, Manager, Company, Template, Revision, Version, LastPrinted | ✅ **Done.** Detected by the `<w:wordDocument>` root in the WordProcessingML namespace; `StripWordMlMetadata` handles document / custom-document / body authors. See the [Word 2003 XML pipeline](#word-2003-xml-pipeline--systemxmllinq-bcl). |
 | **DocBook XML** | `.xml` | `<?xml` + `<book`, `<article`, or `<chapter` | `<info>` block — title, author, publisher, pubdate | Same XML router; low priority because DocBook is niche. |
 | **Unified Office Format** | `.uot`, `.uos`, `.uop` | ZIP with mimetype `application/vnd.uoml+xml` (or similar) | Same OpenDocument-style meta block inside the ZIP | Add UOF mimetype to `DetectZipCategory` and reuse the ODF strip path (structurally identical). Very low install base — verify before prioritising. |
 
@@ -414,7 +421,7 @@ These variants should already be handled correctly by the current OOXML / ODF st
 
 1. ~~**CFBF (legacy binary Office)**~~ — ✅ Done. `StripCfbfMetadata` handles `.doc`, `.dot`, `.xls`, `.xlt`, `.ppt`, `.pot`, `.pps` in a single pass via OpenMcdf + OpenMcdf.Ole.
 2. ~~**RTF**~~ — ✅ Done. `StripRtfMetadata` blanks every string-bearing `\info` control word via a compiled regex. No NuGet added.
-3. **Flat ODF + Word 2003 XML** — one shared XML detection routes both.
+3. ~~**Flat ODF + Word 2003 XML**~~ — ✅ Done. Flat ODF (`.fodt`, `.fods`, `.fodp`) detected via the `<office:document>` root in the OASIS office namespace and passed through the shared `ExtractAndClearOdfMetadata` helper. Word 2003 XML detected via the `<w:wordDocument>` root in the WordProcessingML namespace and stripped by a dedicated `StripWordMlMetadata` helper (document properties, custom document properties, tracked-change / comment authors under `StripBodyAuthors`).
 4. **Untested OOXML/ODF variants (medium)** — one small test per extension to prove the existing code path handles them.
 5. ~~**Audio detection gaps**~~ — ✅ Done. AIFF / AIFC, APE, WavPack and MPC (SV7 + SV8) added to `DetectCategory` and `GetMediaExtensionHint`; covered by `ExtendedAudioDetectionTests.cs` with two false-positive guards (bare `MP+`, `FORM`+`ILBM`).
 6. ~~**HTML passthrough test**~~ — ✅ Done. `HtmlPassthroughTests.cs` locks in the intentional-passthrough contract: `<meta name="author">`, `<title>` and body content all pass through unchanged with `IsPassthrough = true` and `RemovedEntryCount = 0`.

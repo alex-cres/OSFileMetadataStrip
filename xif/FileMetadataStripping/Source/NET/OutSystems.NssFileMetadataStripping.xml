@@ -58,6 +58,13 @@
         <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.RemoveOoxmlThumbnailRelationship(System.IO.Compression.ZipArchive,System.String)">
             <summary>Removes the thumbnail relationship from _rels/.rels after the thumbnail entry is deleted.</summary>
         </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.StartsWithXmlAngleBracket(System.Byte[])">
+            <summary>
+            Returns true when the byte buffer looks like an XML document — after an
+            optional UTF-8 BOM and leading whitespace, the first non-whitespace byte is
+            '&lt;'. Used as a cheap prefilter for the Flat ODF and WordML byte-scanners.
+            </summary>
+        </member>
         <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.StripEpubMetadata(System.Byte[])">
             <summary>Strips Dublin Core metadata (dc:*) and OPF meta refinements from the OPF package document.</summary>
         </member>

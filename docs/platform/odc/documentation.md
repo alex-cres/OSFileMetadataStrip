@@ -186,6 +186,37 @@ Values are recorded in ExtractedMetadata under the keys creator,
 title, description, subject, initialCreator, generator,
 editingCycles, editingDuration, and userDefinedProperties.
 
+Flat ODF (FODT, FODS, FODP)
+Single-file XML variant of ODF. Detected by the <office:document>
+root element in the OASIS office namespace
+(urn:oasis:names:tc:opendocument:xmlns:office:1.0) - the file is
+not a ZIP. Parsed with XDocument.Load and processed by the same
+strip helper as the ZIP-based ODF path, so the strip surface and
+the ExtractedMetadata keys (creator, title, description, subject,
+initialCreator, generator, editingCycles, editingDuration,
+userDefinedProperties) are identical. The output remains a valid
+Flat ODF XML document.
+
+Word 2003 XML (WordProcessingML - .xml)
+Detected by the <w:wordDocument> root element in the WordProcessingML
+namespace (http://schemas.microsoft.com/office/word/2003/wordml).
+Strips every child of <o:DocumentProperties> - Author, LastAuthor,
+Company, Manager, Title, Subject, Keywords, Description, Category,
+Template, HyperlinkBase, Application, AppVersion, TotalTime,
+LastPrinted, Created, LastSaved, and the Pages / Words / Characters /
+CharactersWithSpaces / Lines / Paragraphs revision counters - and
+removes every child of <o:CustomDocumentProperties>. When
+StripBodyAuthors = True, also blanks the w:author and aml:author
+attributes on tracked-change and comment elements throughout the
+document body.
+
+Removed values are captured in ExtractedMetadata under
+documentProperties (built-in properties, keyed by element name),
+customDocumentProperties (user-defined properties, keyed by the
+name attribute), and bodyAuthors (populated only when
+StripBodyAuthors = True; distinct author names sorted
+alphabetically). The output remains a valid Word 2003 XML document.
+
 EPUB
 Detected by the ZIP mimetype entry. Reads META-INF/container.xml to
 locate the OPF package document, then blanks every Dublin Core

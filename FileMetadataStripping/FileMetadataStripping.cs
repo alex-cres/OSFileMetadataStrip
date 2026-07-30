@@ -13,7 +13,7 @@ namespace FileMetadataStripping;
 
 public partial class FileMetadataStripping : IFileMetadataStripping
 {
-    private enum FileCategory { Image, Svg, Pdf, Rtf, OpenXml, LegacyOffice, Odf, Epub, Ora, Media, Passthrough }
+    private enum FileCategory { Image, Svg, Pdf, Rtf, OpenXml, WordMl, LegacyOffice, Odf, FlatOdf, Epub, Ora, Media, Passthrough }
 
     public FileMetadataResult StripFileMetadata(byte[] rawFile, bool stripBodyAuthors)
     {
@@ -24,8 +24,10 @@ public partial class FileMetadataStripping : IFileMetadataStripping
             FileCategory.Pdf          => StripPdfMetadata(rawFile),
             FileCategory.Rtf          => StripRtfMetadata(rawFile),
             FileCategory.OpenXml      => StripOpenXmlMetadata(rawFile, stripBodyAuthors),
+            FileCategory.WordMl       => StripWordMlMetadata(rawFile, stripBodyAuthors),
             FileCategory.LegacyOffice => StripCfbfMetadata(rawFile),
             FileCategory.Odf          => StripOdfMetadata(rawFile),
+            FileCategory.FlatOdf      => StripFlatOdfMetadata(rawFile),
             FileCategory.Epub         => StripEpubMetadata(rawFile),
             FileCategory.Ora          => StripOraMetadata(rawFile),
             FileCategory.Media        => StripMediaMetadata(rawFile),
@@ -81,6 +83,17 @@ public partial class FileMetadataStripping : IFileMetadataStripping
         // rather than re-encoding through Magick.NET for no security benefit.
         if (IsDibFile(rawFile))
             return FileCategory.Passthrough;
+
+        // Flat ODF (.fodt / .fods / .fodp): single-file XML variant of ODF whose root
+        // element is <office:document> in the OASIS namespace. Detected before SVG so
+        // Flat ODF documents that mention <svg> in the body aren't misrouted.
+        if (IsFlatOdfFile(rawFile))
+            return FileCategory.FlatOdf;
+
+        // Word 2003 XML (.xml): WordProcessingML root <w:wordDocument> with the
+        // Microsoft 2003 WordML namespace and an <o:DocumentProperties> block.
+        if (IsWordMlFile(rawFile))
+            return FileCategory.WordMl;
 
         // SVG: XML-based vector image. Detect before Magick.NET so we can strip XML text
         // nodes (<title>, <desc>, <metadata>) that survive raster-oriented Strip() calls.

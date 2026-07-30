@@ -156,7 +156,25 @@
     <Compile Include="FileMetadataStripping.Images.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="FileMetadataStripping.Documents.cs">
+    <Compile Include="FileMetadataStripping.Documents.Pdf.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FileMetadataStripping.Documents.OpenXml.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FileMetadataStripping.Documents.LegacyOffice.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FileMetadataStripping.Documents.Rtf.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FileMetadataStripping.Documents.Odf.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FileMetadataStripping.Documents.Epub.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FileMetadataStripping.Documents.Ora.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="FileMetadataStripping.Media.cs">

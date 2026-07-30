@@ -61,6 +61,10 @@ Every format listed below has an explicit xUnit test in `FileMetadataStripping.O
 
 | ODF documents | ODT, ODS, ODP | dc:creator, dc:title, dc:description, dc:subject, meta:initial-creator, meta:generator, meta:editing-cycles, meta:editing-duration, and all meta:user-defined properties |
 
+| Flat ODF (single-file XML) | FODT, FODS, FODP | Same `dc:*` and `meta:*` elements as the ZIP-based ODF path — detected by the `<office:document>` root in the OASIS office namespace and processed through the shared ODF strip helper |
+
+| Word 2003 XML (WordProcessingML) | XML (Word 2003) | Every child of `<o:DocumentProperties>` (Author, LastAuthor, Company, Manager, Title, Subject, Keywords, Description, Category, Template, HyperlinkBase, Application, AppVersion, TotalTime, LastPrinted, Created, LastSaved, revision counters) and every child of `<o:CustomDocumentProperties>`. When `StripBodyAuthors = True`: also blanks tracked-change and comment `w:author` / `aml:author` attributes throughout the document body. |
+
 | EPUB | EPUB | Dublin Core metadata in the OPF package (`dc:creator`, `dc:title`, `dc:description`, `dc:publisher`, `dc:rights`, `dc:subject`, …) and every OPF `<meta>` refinement |
 
 | ORA (Open Raster) | ORA | `name` and `description` attributes on every element in `stack.xml` (image, stack, layer, mask, text) — structural attributes preserved so the image still renders |

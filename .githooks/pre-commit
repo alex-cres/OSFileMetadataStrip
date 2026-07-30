@@ -32,5 +32,7 @@ fix_file() {
 fix_file "xif/FileMetadataStripping/Source/NET/FileMetadataStripping.csproj"
 
 for f in xif/FileMetadataStripping/Backups/*.csproj; do
-  fix_file "$f"
+  [ -f "$f" ] && fix_file "$f"
 done
+
+exit 0

@@ -61,6 +61,10 @@ Every format listed below has an explicit xUnit test in the component's test pro
 
 | ODF documents | ODT, ODS, ODP | dc:creator, dc:title, dc:description, dc:subject, meta:initial-creator, meta:generator, meta:editing-cycles, meta:editing-duration, and all meta:user-defined properties |
 
+| Flat ODF (single-file XML) | FODT, FODS, FODP | Same `dc:*` and `meta:*` elements as the ZIP-based ODF path — detected by the `<office:document>` root in the OASIS office namespace |
+
+| Word 2003 XML (WordProcessingML) | XML (Word 2003) | `<o:DocumentProperties>` and `<o:CustomDocumentProperties>` children removed; tracked-change / comment `w:author` and `aml:author` attributes blanked when `StripBodyAuthors = True` |
+
 | EPUB | EPUB | Dublin Core (`dc:*`) and every OPF `<meta>` refinement |
 
 | ORA (Open Raster) | ORA | `name` / `description` attributes on every element in `stack.xml` |
