@@ -1,0 +1,234 @@
+FileMetadataStripping v0.1.6 - O11 sandbox robustness: GDI+ fallback engine, native-DLL preload guard, and full parity test coverage
+Released 2026-08-03
+
+
+OVERVIEW
+--------
+
+O11-only robustness release. Hardens the extension against locked-down
+O11 hosts on which Magick.NET's native library either fails to bind its
+C/C++ runtime dependencies or is refused entirely by the host's security
+posture (WDAC, EDR image-load hooks, restricted DLL search path).
+Symptoms in the field:
+
+  System.TypeInitializationException: The type initializer for
+  'NativeMagickSettings' threw an exception
+    ---> Unable to load DLL 'Magick.Native-Q8-x64.dll': A dynamic link
+         library (DLL) initialization routine failed. (HRESULT: 0x8007045A)
+
+Primary trigger is the OutSystems Personal Environment sandbox on
+outsystemscloud.com. Ships the same layered mitigations OSStegoGuard
+v0.1.2 shipped, adapted for file-metadata stripping, plus a full parity
+test suite for the fallback engine. The ODC path (net10.0) is untouched;
+full Magick.NET support with the entire 100+ format matrix remains.
+
+SERVER ACTION
+-------------
+
+StripFileMetadata - inputs and outputs unchanged from v0.1.5.
+
+  Inputs
+    RawFile           Binary Data   mandatory
+    StripBodyAuthors  Boolean       default False
+
+  Output FileMetadataResult
+    CleanFile           Binary Data
+    ExtractedMetadata   Text (JSON)
+    RemovedEntryCount   Integer
+    IsPassthrough       Boolean
+
+
+WHAT'S NEW IN v0.1.6 - O11 ONLY
+--------------------------------
+
+1. Native-DLL preload guard EnsureMagickNativePreloaded
+
+   Runs once at the entry of MssStripFileMetadata. Calls SetDllDirectoryW
+   on the extension's bin folder (belt), then LoadLibraryExW on the full
+   path to Magick.Native-Q8-x64.dll with the LOAD_WITH_ALTERED_SEARCH_PATH
+   flag (0x00000008) so Windows uses the DLL's own directory as the
+   search root for its dependent DLLs (braces). Resolves the bundled VC++
+   2015-2022 x64 runtime and BCL shim DLLs staged in the XIF bin folder.
+   Idempotent, thread-safe, silent no-op on healthy hosts.
+
+2. Runtime engine fallback to System.Drawing (GDI+)
+
+   The preload guard covers most failure modes but not the OutSystems
+   Personal Environment sandbox, whose posture refuses the load at the
+   DllMain level. On that host the extension now automatically switches
+   engines the first time NativeMagickSettings throws:
+   MssStripFileMetadata wraps its Magick.NET call in try/catch
+   (TypeInitializationException), latches a static _magickBroken flag via
+   Interlocked.Exchange on the first failure, and for the rest of the
+   AppDomain routes every image call through a new pure-managed pipeline
+   built on System.Drawing.Image plus System.Drawing.Imaging (GDI+).
+
+   GDI+ is a Windows built-in KnownDLL (gdiplus.dll), never subject to
+   the VC++ / EDR / WDAC restrictions that block Magick.Native, so the
+   fallback works on every current O11 host including the OPE sandbox.
+   System.Drawing is a framework GAC assembly - no NuGet, no new
+   supply-chain surface. The ODC path is untouched.
+
+   Documents, SVG, media and passthrough pipelines are pure-managed
+   (PDFsharp, DocumentFormat.OpenXml, OpenMcdf, System.Xml.Linq,
+   System.IO.Packaging, TagLibSharp) and behave identically on both
+   engines - no changes.
+
+
+GDI+ FALLBACK RESULT CONTRACT (3-WAY)
+--------------------------------------
+
+The fallback engine partitions image calls into three deterministic
+outcomes. Consumers key off the FileMetadataResult fields directly.
+
+  1. Not a recognised image (plain text, arbitrary bytes)
+       -> passthrough
+       IsPassthrough=true, RemovedEntryCount=0,
+       ExtractedMetadata="[]", CleanFile=originalBytes
+
+  2. Recognised image in a GDI+-supported format
+     (JPEG, PNG, GIF, BMP, TIFF)
+       -> actively stripped
+       IsPassthrough=false, RemovedEntryCount>0 when the input carried
+       EXIF / IPTC / GPS / thumbnail / XMP / any GDI PropertyId,
+       ExtractedMetadata={"gdiPropertyItems":["Make","Model",...]},
+       CleanFile=stripped bytes in the original format via
+       Image.RawFormat.
+
+  3. Recognised image in a format GDI+ cannot decode
+     (WebP, HEIC, HEIF, AVIF, JXL, JP2, J2c, JXR, PSD, PSB, DDS, EXR,
+      HDR, DPX, CIN, FITS, QOI, SGI, SUN, PCX, DCX, PNM, JBIG, XCF,
+      WMF, ICO, DCM, TGA, MNG, and every camera RAW variant - ARW/CR2/
+      DNG/NEF/ORF/PEF/RAF/X3F)
+       -> declined
+       IsPassthrough=false, RemovedEntryCount=0, ExtractedMetadata
+       carries a JSON processingError prefixed "GDI+ fallback:" naming
+       the format, CleanFile=originalBytes.
+
+Motivation: a recognised-but-unsupported format is a real processing
+failure that deserves a proper signal. Returning IsPassthrough=true
+would be a security-signal downgrade - the file DOES carry metadata
+containers and the fallback engine did NOT strip them. The primary
+Magick.NET engine still strips all three categories on healthy hosts;
+the 3-way contract only surfaces when the fallback engages.
+
+Consumer-facing predicates:
+
+  Actively stripped:
+      IsPassthrough == false && RemovedEntryCount > 0
+
+  Fallback declined to strip:
+      IsPassthrough == false && RemovedEntryCount == 0 &&
+      ExtractedMetadata.Contains("GDI+ fallback:")
+
+  Not an image / not in scope:
+      IsPassthrough == true
+
+
+PARITY TEST COVERAGE FOR THE FALLBACK PATH
+-------------------------------------------
+
+New xUnit test project FileMetadataStripping.O11.GDI.Tests (net48). 545
+deterministic tests execute against CssFileMetadataStripping with the
+_magickBroken latch forced on via a single internal test seam
+ForceGdiFallbackForTesting(), called once from the mirror adapter's
+static constructor. Documents, SVG, media and passthrough tests are
+shared verbatim with the primary O11 project via linked-Compile items.
+
+    FileMetadataStripping.Tests           ODC net10.0    720 passing
+    FileMetadataStripping.O11.Tests       O11 net48      720 passing
+    FileMetadataStripping.O11.GDI.Tests   O11 net48      545 passing
+    Total                                                1985 passing
+
+
+ALSO FIXED IN v0.1.6
+--------------------
+
+HEIC "hevc" / "hevx" / "heim" / "heis" major brands no longer route to
+silent passthrough on broken-Magick hosts. The first pure-managed image
+detector recognised only "heic" and "heix". A "hevc"-branded HEIC (the
+most common iPhone Camera Roll brand) would slip through the early
+DetectImageFormatByMagicBytes check, get routed to FileCategory.Image via
+the IsHeifOrAvifBrand fallback, then land in StripImageMetadataWithGdi
+where the same narrow brand list returned null - producing
+IsPassthrough=true for a file that DOES carry EXIF / GPS / thumbnail.
+Widened DetectImageFormatByMagicBytes to match IsHeifOrAvifBrand exactly
+(any "he*" prefix + "mif1"/"msf1" + "avif"/"avis") and locked the
+invariant with six new theory tests. Only affects fallback hosts.
+
+
+KNOWN LIMITATIONS
+-----------------
+
+Same as v0.1.5 for the primary Magick.NET path. On hosts where the GDI+
+fallback engages, additionally:
+
+  Actively stripped: JPEG, PNG, GIF, BMP, TIFF.
+
+  All other recognised images (WebP, HEIC/HEIF/AVIF, JXL, JP2, J2c, JXR,
+  PSD/PSB, DDS, EXR, HDR, DPX/CIN, FITS, QOI, SGI, SUN, PCX/DCX, PNM,
+  JBIG, XCF, WMF, ICO, DCM, TGA, MNG, camera RAW variants) return the
+  structured "GDI+ fallback:" declined result described above.
+
+  Animated GIF and multi-page TIFF: primary frame/page is stripped and
+  saved; per-frame delay metadata is best-effort on fallback.
+
+  APNG animation is dropped by the fallback (GDI+ treats it as a static
+  PNG); the still frame is stripped and re-encoded as PNG.
+
+  Fallback is dormant on healthy hosts. Documents, SVG, audio and video
+  pipelines are unaffected on both engines.
+
+
+DEPENDENCIES
+------------
+
+Runtime dependencies unchanged from v0.1.5: Magick.NET-Q8-AnyCPU 14.15.0
+(Apache-2.0), PDFsharp 1.50.5147 (MIT), DocumentFormat.OpenXml 3.5.1
+(MIT), OpenMcdf 3.1.4 + OpenMcdf.Ole 3.1.4-experimental.1 (MPL-2.0),
+TagLibSharp 2.3.0 (LGPL-2.1), System.IO.Packaging 8.0.1 and
+System.Text.Json 8.0.5 (MIT).
+
+New in v0.1.6: System.Drawing (net48 framework GAC) - O11 fallback only.
+No NuGet, no supply-chain expansion.
+
+Bundled in the O11 XIF since earlier cycles: System.Memory,
+System.Buffers, System.Runtime.CompilerServices.Unsafe,
+System.Numerics.Vectors (BCL shims); vcruntime140, vcruntime140_1,
+msvcp140, msvcp140_1, msvcp140_2, vcomp140, concrt140 (Visual C++
+2015-2022 x64 runtime).
+
+
+PLATFORM DETAILS
+----------------
+
+ODC
+  Target framework: net10.0
+  Publish target  : linux-x64
+  Interface       : IFileMetadataStripping.StripFileMetadata
+  Structure       : FileMetadataResult
+  Behaviour       : unchanged since v0.1.5.
+
+O11
+  Target framework: net48
+  Interface       : IssFileMetadataStripping.MssStripFileMetadata
+  Structure       : RCFileMetadataResultRecord,
+                    STFileMetadataResultStructure
+  XIF file        : xif/FileMetadataStripping.xif
+  Deployment      : Integration Studio -> 1-Click Publish.
+  New in v0.1.6   : EnsureMagickNativePreloaded guard on every
+                    MssStripFileMetadata call, System.Drawing (GDI+)
+                    fallback engine latched by TypeInitializationException,
+                    FileMetadataStripping.O11.GDI.Tests mirror project
+                    (545 tests forcing the fallback path via an
+                    [InternalsVisibleTo]-gated seam).
+
+
+UPGRADE NOTES
+-------------
+
+No interface change. Existing consumers continue to work unchanged. If
+your app currently keys off IsPassthrough alone to decide whether the
+file was actively stripped, tighten the predicate to
+IsPassthrough==false && RemovedEntryCount>0 so recognised-but-unsupported
+inputs on the fallback engine surface as the explicit failure they are.

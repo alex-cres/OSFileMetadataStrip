@@ -33,6 +33,26 @@
             and must be routed to the image path, not the audio/video path.
             </summary>
         </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.StripImageMetadataWithFallback(System.Byte[])">
+            <summary>
+            Dispatches the image strip through Magick.NET on healthy hosts and through the
+            GDI+ fallback engine on hosts where Magick.NET's native library cannot be
+            initialised (typical on the OutSystems Personal Environment sandbox — HRESULT
+            0x8007045A / ERROR_DLL_INIT_FAILED). The <see cref="F:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping._magickBroken"/> latch is
+            AppDomain-scoped: once set, every subsequent call short-circuits to GDI+ so the
+            per-call cost of a CLR-cached TypeInitializationException is paid at most once.
+            </summary>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.DetectImageFormatByMagicBytes(System.Byte[])">
+            <summary>
+            Pure-managed magic-byte image format detector. Used by <c>DetectCategory</c> when
+            Magick.NET's native init has already failed (so <see cref="T:ImageMagick.MagickImageInfo"/> is
+            unavailable), and by the GDI+ fallback engine to distinguish "recognised image
+            but GDI+ cannot decode it" from "not an image at all".
+            Returns a friendly format name (e.g. "Jpeg", "Png", "WebP", "Heic") or
+            <see langword="null"/> when the bytes are not a recognised image.
+            </summary>
+        </member>
         <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.StripHdrCommentLines(System.Byte[])">
             <summary>Removes encoder-injected comment lines from a Radiance HDR byte stream.
             Strips every '#' line that is not a '#?' magic marker. The resolution string
@@ -51,6 +71,12 @@
             <summary>Detects DIB (BMP without the 14-byte BITMAPFILEHEADER) by validating the
             BITMAPINFOHEADER: header size at bytes 0–3 is one of {40, 52, 56, 108, 124}, planes=1
             at bytes 12–13, and bit-count at bytes 14–15 is a valid depth (1/4/8/16/24/32).</summary>
+        </member>
+        <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.StripImageMetadataWithGdi(System.Byte[])">
+            <summary>
+            Strips metadata from an image using GDI+ (System.Drawing). Used when Magick.NET
+            is unavailable. See file header for the full behavioural contract.
+            </summary>
         </member>
         <member name="M:OutSystems.NssFileMetadataStripping.CssFileMetadataStripping.FindOoxmlThumbnailPath(System.IO.Packaging.Package)">
             <summary>Returns the ZIP entry path of the OOXML embedded thumbnail image, or null if none.</summary>

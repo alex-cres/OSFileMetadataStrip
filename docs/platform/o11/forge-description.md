@@ -163,6 +163,34 @@ StripFileMetadata(RawFile: FileContent.Content)
 
 ---
 
+### Compatibility
+
+FileMetadataStripping works on standard OutSystems 11 servers **and on locked-down O11 hosts** — including the OutSystems Personal Environment sandbox (`outsystemscloud.com`) — via a two-engine architecture on the image strip pipeline:
+
+- **Primary engine — Magick.NET.** On healthy O11 hosts, image metadata stripping uses `Magick.NET-Q8-AnyCPU` and delivers the full format matrix listed in the Supported File Types table above (JPEG, PNG, GIF, TIFF, WebP, AVIF, HEIC, JXL, JPEG 2000, PSD, camera RAW, and every other image entry). The XIF ships the Microsoft VC++ 2015–2022 x64 runtime alongside `Magick.Native-Q8-x64.dll`, and the extension preloads the native library from an absolute path with `LOAD_WITH_ALTERED_SEARCH_PATH` on the first call, to maximise the set of hosts on which the primary engine initialises successfully.
+
+- **Fallback engine — System.Drawing (GDI+).** On hosts where `Magick.Native-Q8-x64.dll` cannot initialise despite those mitigations (host-side native-code loader policy on the Personal Environment sandbox is the currently known case — HRESULT `0x8007045A` / `ERROR_DLL_INIT_FAILED`), the extension catches the `System.TypeInitializationException` on first use, latches a static AppDomain-scoped flag, and switches every subsequent image call to a pure-managed GDI+ pipeline. GDI+ (`gdiplus.dll`) is a Windows built-in KnownDLL and is not subject to the VC++ / EDR / WDAC restrictions that block the native ImageMagick runtime. No host-side configuration is required.
+
+  The fallback engine partitions every image call into one of three deterministic outcomes:
+
+  - **Actively stripped** (`IsPassthrough = false`, `RemovedEntryCount > 0` when metadata was present, `ExtractedMetadata` = JSON list of the GDI+ `PropertyItem` names that were removed) — JPEG, PNG, GIF (multi-frame), BMP, TIFF (multi-page). Full metadata removal path applied normally.
+
+  - **Recognised-but-unsupported error contract** (`IsPassthrough = false`, `RemovedEntryCount = 0`, `CleanFile = originalBytes`, `ExtractedMetadata` = JSON with a `processingError` value prefixed with the fixed marker `"GDI+ fallback:"` and the format name) — WebP, HEIC, HEIF, AVIF, JXL, JPEG 2000, JPEG XR, PSD/PSB, DDS, EXR, HDR, DPX/CIN, FITS, QOI, SGI, SUN, PCX/DCX, PNM, JBIG, XCF, WMF, ICO, DCM, TGA, MNG, and camera RAW variants. The caller receives an explicit failure signal instead of a silent passthrough — log-and-reject or retry through an alternate pipeline.
+
+  - **Passthrough** (`IsPassthrough = true`, empty `ExtractedMetadata`) — non-image / unrecognised bytes. Identical to the primary engine.
+
+- **Document / SVG / media pipelines are unaffected.** PDF, RTF, OOXML, legacy binary Office, ODF, Flat ODF, Word 2003 XML, EPUB, ORA, SVG, audio, and video are all pure-managed and behave identically on both engines.
+
+Consumer-facing predicate on the O11 side (both engines):
+
+- *Actively stripped:* `IsPassthrough == false && RemovedEntryCount > 0`.
+- *Fallback engine declined the format:* `IsPassthrough == false && RemovedEntryCount == 0 && ExtractedMetadata.Contains("GDI+ fallback:")`.
+- *Not an image / not scoped:* `IsPassthrough == true`.
+
+The `StripFileMetadata` action and the `FileMetadataResult` structure are unchanged on both engines — no new fields, no breaking change.
+
+---
+
 ### License
 
 MIT

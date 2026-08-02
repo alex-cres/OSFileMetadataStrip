@@ -159,6 +159,32 @@ All packages are Apache 2.0, MIT, LGPL 2.1, or MPL 2.0.
 7. Build the solution.
 8. Re-open Integration Studio → **1-Click Publish** to Service Center.
 
+### O11 two-engine image pipeline
+
+The O11 image strip pipeline is **transparently backed by two engines**. The
+primary engine is Magick.NET (identical to ODC — full format matrix). On O11
+hosts where the Magick.NET native library refuses to initialise (typical on
+locked-down environments such as the OutSystems Personal Environment sandbox
+on `outsystemscloud.com` — HRESULT `0x8007045A` / `ERROR_DLL_INIT_FAILED`),
+the extension automatically falls back to a pure-managed `System.Drawing`
+(GDI+) engine on the first image call and latches that decision for the
+lifetime of the AppDomain.
+
+Under the fallback engine the interface is unchanged, but the format matrix
+shrinks: JPEG, PNG, GIF, BMP, and TIFF are actively stripped
+(`IsPassthrough=false`, `RemovedEntryCount>0` when metadata was present);
+other recognised image formats (WebP, HEIC, AVIF, JXL, JPEG 2000, PSD, camera
+RAW, etc.) return `IsPassthrough=false`, `RemovedEntryCount=0`,
+`CleanFile=originalBytes`, and an `ExtractedMetadata` `processingError`
+prefixed with the fixed marker `"GDI+ fallback:"`. Unrecognised bytes still
+return `IsPassthrough=true`. The document / SVG / media pipelines are pure
+managed and unaffected by the engine switch. See
+[docs/platform/o11/forge-description.md](./docs/platform/o11/forge-description.md#compatibility)
+for the full behaviour contract.
+
+The ODC External Library is not affected — the sandbox constraint is O11-only
+and `System.Drawing.Common` on .NET 6+ is Windows-only.
+
 ---
 
 ## Development

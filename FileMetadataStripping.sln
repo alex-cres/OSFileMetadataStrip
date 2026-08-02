@@ -15,6 +15,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FileMetadataStripping.O11",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FileMetadataStripping.O11.Tests", "FileMetadataStripping.O11.Tests\FileMetadataStripping.O11.Tests.csproj", "{2F6EC31B-5D91-4A28-9F93-5813139EC742}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FileMetadataStripping.O11.GDI.Tests", "FileMetadataStripping.O11.GDI.Tests\FileMetadataStripping.O11.GDI.Tests.csproj", "{3E7D58D1-A755-452B-919B-887932C8FA1E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -85,6 +87,18 @@ Global
 		{2F6EC31B-5D91-4A28-9F93-5813139EC742}.Release|x64.Build.0 = Release|Any CPU
 		{2F6EC31B-5D91-4A28-9F93-5813139EC742}.Release|x86.ActiveCfg = Release|Any CPU
 		{2F6EC31B-5D91-4A28-9F93-5813139EC742}.Release|x86.Build.0 = Release|Any CPU
+		{3E7D58D1-A755-452B-919B-887932C8FA1E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3E7D58D1-A755-452B-919B-887932C8FA1E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3E7D58D1-A755-452B-919B-887932C8FA1E}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{3E7D58D1-A755-452B-919B-887932C8FA1E}.Debug|x64.Build.0 = Debug|Any CPU
+		{3E7D58D1-A755-452B-919B-887932C8FA1E}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{3E7D58D1-A755-452B-919B-887932C8FA1E}.Debug|x86.Build.0 = Debug|Any CPU
+		{3E7D58D1-A755-452B-919B-887932C8FA1E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3E7D58D1-A755-452B-919B-887932C8FA1E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3E7D58D1-A755-452B-919B-887932C8FA1E}.Release|x64.ActiveCfg = Release|Any CPU
+		{3E7D58D1-A755-452B-919B-887932C8FA1E}.Release|x64.Build.0 = Release|Any CPU
+		{3E7D58D1-A755-452B-919B-887932C8FA1E}.Release|x86.ActiveCfg = Release|Any CPU
+		{3E7D58D1-A755-452B-919B-887932C8FA1E}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

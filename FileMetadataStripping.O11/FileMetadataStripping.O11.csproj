@@ -11,6 +11,11 @@
 
   <ItemGroup>
     <Reference Include="System.IO.Compression" />
+    <Reference Include="System.Drawing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="FileMetadataStripping.O11.GDI.Tests" />
   </ItemGroup>
 
   <ItemGroup>

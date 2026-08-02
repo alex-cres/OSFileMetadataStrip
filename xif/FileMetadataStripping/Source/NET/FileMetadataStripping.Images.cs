@@ -44,7 +44,197 @@ namespace OutSystems.NssFileMetadataStripping {
 			return false;
 		}
 
-		private static RCFileMetadataResultRecord StripImageMetadata(byte[] rawFile)
+		/// <summary>
+		/// Dispatches the image strip through Magick.NET on healthy hosts and through the
+		/// GDI+ fallback engine on hosts where Magick.NET's native library cannot be
+		/// initialised (typical on the OutSystems Personal Environment sandbox — HRESULT
+		/// 0x8007045A / ERROR_DLL_INIT_FAILED). The <see cref="_magickBroken"/> latch is
+		/// AppDomain-scoped: once set, every subsequent call short-circuits to GDI+ so the
+		/// per-call cost of a CLR-cached TypeInitializationException is paid at most once.
+		/// </summary>
+		private static RCFileMetadataResultRecord StripImageMetadataWithFallback(byte[] rawFile)
+		{
+			if (rawFile == null || rawFile.Length == 0)
+				return Passthrough(rawFile != null ? rawFile : System.Array.Empty<byte>());
+
+			if (System.Threading.Volatile.Read(ref _magickBroken) == 1)
+				return StripImageMetadataWithGdi(rawFile);
+
+			try
+			{
+				return StripImageMetadataWithMagick(rawFile);
+			}
+			catch (System.TypeInitializationException)
+			{
+				// Magick.NET native init failed on this host. Latch the state and use GDI+
+				// from here on. The exception is CLR-cached, so this catch fires only on the
+				// first failing call; every subsequent call short-circuits via the flag.
+				System.Threading.Interlocked.Exchange(ref _magickBroken, 1);
+				return StripImageMetadataWithGdi(rawFile);
+			}
+		}
+
+		/// <summary>
+		/// Pure-managed magic-byte image format detector. Used by <c>DetectCategory</c> when
+		/// Magick.NET's native init has already failed (so <see cref="MagickImageInfo"/> is
+		/// unavailable), and by the GDI+ fallback engine to distinguish "recognised image
+		/// but GDI+ cannot decode it" from "not an image at all".
+		/// Returns a friendly format name (e.g. "Jpeg", "Png", "WebP", "Heic") or
+		/// <see langword="null"/> when the bytes are not a recognised image.
+		/// </summary>
+		internal static string DetectImageFormatByMagicBytes(byte[] b)
+		{
+			if (b == null || b.Length < 4) return null;
+
+			// ── GDI+-decodable formats (JPEG, PNG, GIF, TIFF) ──────────────
+			// BMP / DIB are intentionally NOT included here — the primary DetectCategory
+			// routes them to Passthrough before this method is called (they carry no
+			// metadata containers), and reintroducing them here would misclassify them
+			// as "image needing strip" under the GDI+ fallback engine.
+			// JPEG   : FF D8 FF
+			if (b[0] == 0xFF && b[1] == 0xD8 && b[2] == 0xFF) return "Jpeg";
+			// PNG    : 89 50 4E 47
+			if (b[0] == 0x89 && b[1] == 0x50 && b[2] == 0x4E && b[3] == 0x47) return "Png";
+			// GIF    : 47 49 46 38  (GIF8)
+			if (b[0] == 0x47 && b[1] == 0x49 && b[2] == 0x46 && b[3] == 0x38) return "Gif";
+			// TIFF   : 49 49 2A 00 (LE) or 4D 4D 00 2A (BE)
+			if ((b[0] == 0x49 && b[1] == 0x49 && b[2] == 0x2A && b[3] == 0x00) ||
+				(b[0] == 0x4D && b[1] == 0x4D && b[2] == 0x00 && b[3] == 0x2A)) return "Tiff";
+
+			// ── Recognised image formats NOT decodable by GDI+ ─────────────
+			// These fall through to the "GDI+ unsupported format" error contract when the
+			// fallback engine is active, and are handled normally by Magick.NET on healthy hosts.
+
+			// WebP: "RIFF" .... "WEBP"
+			if (b.Length >= 12 && b[0] == 0x52 && b[1] == 0x49 && b[2] == 0x46 && b[3] == 0x46
+			                   && b[8] == 0x57 && b[9] == 0x45 && b[10] == 0x42 && b[11] == 0x50) return "WebP";
+
+			// ISOBMFF-based: HEIC / HEIF / AVIF — "ftyp" at offset 4. Brand coverage must
+			// mirror IsHeifOrAvifBrand exactly — any divergence lets brands like "hevc"
+			// (the most common iPhone HEIC major brand) route through the "unknown magic"
+			// branch of the GDI+ fallback and return IsPassthrough=true, which is a
+			// security-signal downgrade.
+			if (b.Length >= 12 && b[4] == 0x66 && b[5] == 0x74 && b[6] == 0x79 && b[7] == 0x70)
+			{
+				// HEIC/HEVC image family — any brand beginning with "he" (heic, heix,
+				// heim, heis, hevc, hevx, …). Matches IsHeifOrAvifBrand.
+				if (b[8] == 0x68 && b[9] == 0x65) return "Heic";
+				// HEIF base variants: mif1, msf1
+				if (b[8] == 0x6D && (b[9] == 0x69 || b[9] == 0x73) && b[10] == 0x66 && b[11] == 0x31)
+					return "Heif";
+				// AVIF / AVIF image sequence: avif, avis
+				if (b[8] == 0x61 && b[9] == 0x76 && b[10] == 0x69 && (b[11] == 0x66 || b[11] == 0x73))
+					return "Avif";
+				// Other ftyp brands (mp4/mov) are audio/video, not an image — return null
+				// so DetectCategory routes them via the Media detectors instead.
+				return null;
+			}
+
+			// JPEG XL: naked codestream (FF 0A) or ISOBMFF box "JXL "
+			if (b[0] == 0xFF && b[1] == 0x0A) return "Jxl";
+			if (b.Length >= 12 && b[0] == 0x00 && b[1] == 0x00 && b[2] == 0x00 && b[3] == 0x0C
+			                   && b[4] == 0x4A && b[5] == 0x58 && b[6] == 0x4C && b[7] == 0x20) return "Jxl";
+
+			// JPEG 2000 box format "jP  "  |  code stream FF 4F FF 51
+			if (b.Length >= 12 && b[0] == 0x00 && b[1] == 0x00 && b[2] == 0x00 && b[3] == 0x0C
+			                   && b[4] == 0x6A && b[5] == 0x50 && b[6] == 0x20 && b[7] == 0x20) return "Jp2";
+			if (b[0] == 0xFF && b[1] == 0x4F && b[2] == 0xFF && b[3] == 0x51) return "J2c";
+
+			// JPEG XR / HD Photo: 49 49 BC 01 or 49 49 BC 00
+			if (b[0] == 0x49 && b[1] == 0x49 && b[2] == 0xBC) return "Jxr";
+
+			// Photoshop PSD / PSB: "8BPS"
+			if (b[0] == 0x38 && b[1] == 0x42 && b[2] == 0x50 && b[3] == 0x53) return "Psd";
+
+			// DirectDraw Surface: "DDS "
+			if (b[0] == 0x44 && b[1] == 0x44 && b[2] == 0x53 && b[3] == 0x20) return "Dds";
+
+			// OpenEXR: 76 2F 31 01
+			if (b[0] == 0x76 && b[1] == 0x2F && b[2] == 0x31 && b[3] == 0x01) return "Exr";
+
+			// MNG: 8A 4D 4E 47
+			if (b[0] == 0x8A && b[1] == 0x4D && b[2] == 0x4E && b[3] == 0x47) return "Mng";
+
+			// QOI: "qoif"
+			if (b[0] == 0x71 && b[1] == 0x6F && b[2] == 0x69 && b[3] == 0x66) return "Qoi";
+
+			// FITS: "SIMPLE" (space-padded to "SIMPLE  =")
+			if (b.Length >= 6 && b[0] == 0x53 && b[1] == 0x49 && b[2] == 0x4D && b[3] == 0x50
+			                  && b[4] == 0x4C && b[5] == 0x45) return "Fits";
+
+			// Radiance HDR: "#?RADIANCE" or "#?RGBE" — require the full identifier.
+			if (b.Length >= 10 && b[0] == 0x23 && b[1] == 0x3F
+			                   && ((b[2] == 0x52 && b[3] == 0x41 && b[4] == 0x44 && b[5] == 0x49 && b[6] == 0x41 && b[7] == 0x4E && b[8] == 0x43 && b[9] == 0x45)
+			                    || (b[2] == 0x52 && b[3] == 0x47 && b[4] == 0x42 && b[5] == 0x45))) return "Hdr";
+
+			// Silicon Graphics Image: 01 DA
+			if (b[0] == 0x01 && b[1] == 0xDA) return "Sgi";
+
+			// DPX: "SDPX" or "XPDS"
+			if ((b[0] == 0x53 && b[1] == 0x44 && b[2] == 0x50 && b[3] == 0x58) ||
+				(b[0] == 0x58 && b[1] == 0x50 && b[2] == 0x44 && b[3] == 0x53)) return "Dpx";
+
+			// Cineon: 80 2A 5F D7 or D7 5F 2A 80
+			if ((b[0] == 0x80 && b[1] == 0x2A && b[2] == 0x5F && b[3] == 0xD7) ||
+				(b[0] == 0xD7 && b[1] == 0x5F && b[2] == 0x2A && b[3] == 0x80)) return "Cin";
+
+			// Sun Raster: 59 A6 6A 95
+			if (b[0] == 0x59 && b[1] == 0xA6 && b[2] == 0x6A && b[3] == 0x95) return "Sun";
+
+			// DCX (multi-page PCX): B1 68 DE 3A
+			if (b[0] == 0xB1 && b[1] == 0x68 && b[2] == 0xDE && b[3] == 0x3A) return "Dcx";
+
+			// PCX: 0A, version 0..5, encoding 0/1
+			if (b[0] == 0x0A && b[1] <= 0x05 && b[2] <= 0x01) return "Pcx";
+
+			// Netpbm: P1..P7 followed by whitespace
+			if (b[0] == 0x50 && b[1] >= 0x31 && b[1] <= 0x37
+			                 && (b[2] == 0x0A || b[2] == 0x0D || b[2] == 0x20 || b[2] == 0x09)) return "Pnm";
+
+			// XBM: "#define"
+			if (b.Length >= 7 && b[0] == 0x23 && b[1] == 0x64 && b[2] == 0x65 && b[3] == 0x66
+			                  && b[4] == 0x69 && b[5] == 0x6E && b[6] == 0x65) return "Xbm";
+
+			// XPM: "/* XPM */"
+			if (b.Length >= 9 && b[0] == 0x2F && b[1] == 0x2A && b[2] == 0x20 && b[3] == 0x58
+			                  && b[4] == 0x50 && b[5] == 0x4D) return "Xpm";
+
+			// JBIG2: 97 4A 42 32
+			if (b[0] == 0x97 && b[1] == 0x4A && b[2] == 0x42 && b[3] == 0x32) return "Jbig";
+
+			// GIMP XCF: "gimp xcf "
+			if (b.Length >= 9 && b[0] == 0x67 && b[1] == 0x69 && b[2] == 0x6D && b[3] == 0x70
+			                  && b[4] == 0x20 && b[5] == 0x78 && b[6] == 0x63 && b[7] == 0x66) return "Xcf";
+
+			// Windows Metafile: D7 CD C6 9A (Aldus placeable) or 01 00 09 00 (raw)
+			if ((b[0] == 0xD7 && b[1] == 0xCD && b[2] == 0xC6 && b[3] == 0x9A) ||
+				(b[0] == 0x01 && b[1] == 0x00 && b[2] == 0x09 && b[3] == 0x00)) return "Wmf";
+
+			// ICO: 00 00 01 00
+			if (b[0] == 0x00 && b[1] == 0x00 && b[2] == 0x01 && b[3] == 0x00) return "Ico";
+
+			// DICOM: "DICM" at offset 128
+			if (b.Length >= 132 && b[128] == 0x44 && b[129] == 0x49 && b[130] == 0x43 && b[131] == 0x4D) return "Dcm";
+
+			// TGA v2 footer or v1 header heuristic (mirrors IsTgaFile)
+			if (b.Length >= 18)
+			{
+				var tgaFooter = System.Text.Encoding.ASCII.GetString(b, b.Length - 18, 17);
+				if (tgaFooter == "TRUEVISION-XFILE.") return "Tga";
+				byte cmt = b[1]; byte imt = b[2]; byte depth = b[16];
+				int w = b[12] | (b[13] << 8);
+				int h = b[14] | (b[15] << 8);
+				if ((cmt == 0 || cmt == 1)
+					&& (imt == 1 || imt == 2 || imt == 3 || imt == 9 || imt == 10 || imt == 11)
+					&& (depth == 8 || depth == 15 || depth == 16 || depth == 24 || depth == 32)
+					&& w > 0 && h > 0)
+					return "Tga";
+			}
+
+			return null;
+		}
+
+		private static RCFileMetadataResultRecord StripImageMetadataWithMagick(byte[] rawFile)
 		{
 			MagickImageCollection images;
 			try

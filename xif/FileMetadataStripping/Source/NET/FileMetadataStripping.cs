@@ -5,7 +5,9 @@ using System.IO;
 using System.IO.Compression;
 using System.IO.Packaging;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
+using System.Threading;
 using System.Xml.Linq;
 using ImageMagick;
 using PdfSharp.Pdf;
@@ -23,6 +25,7 @@ namespace OutSystems.NssFileMetadataStripping {
 		//
 		// Format-specific strip pipelines live in the sibling partial-class files:
 		//   FileMetadataStripping.Images.cs                — image + SVG strip pipelines
+		//   FileMetadataStripping.Images.Gdi.cs             — System.Drawing (GDI+) fallback
 		//   FileMetadataStripping.Documents.Pdf.cs          — PDF (PDFsharp)
 		//   FileMetadataStripping.Documents.OpenXml.cs      — DOCX / XLSX / PPTX + Word 2003 XML
 		//   FileMetadataStripping.Documents.LegacyOffice.cs — DOC / XLS / PPT (CFBF / OLE)
@@ -34,6 +37,23 @@ namespace OutSystems.NssFileMetadataStripping {
 
 		private enum FileCategory { Image, Svg, Pdf, Rtf, OpenXml, WordMl, LegacyOffice, Odf, FlatOdf, Epub, Ora, Media, Passthrough }
 
+		// 0 = untried, 1 = broken (fall back to GDI+ for images forever in this AppDomain).
+		// Set on the first TypeInitializationException from Magick.NET (typical on locked-down
+		// O11 hosts where Magick.Native-Q8-x64.dll's DllMain aborts at import binding —
+		// HRESULT 0x8007045A / ERROR_DLL_INIT_FAILED).
+		private static int _magickBroken;
+
+		// -------------------------------------------------------------------
+		// Test-only seam. Internal, only accessible from `FileMetadataStripping.O11.GDI.Tests`
+		// via [InternalsVisibleTo]. Called once per AppDomain from the mirror test project's
+		// `FileMetadataStripping` adapter static constructor to force every test in that
+		// assembly through the GDI+ fallback path. NEVER call from production code.
+		// -------------------------------------------------------------------
+		internal static void ForceGdiFallbackForTesting()
+		{
+			Interlocked.Exchange(ref _magickBroken, 1);
+		}
+
 		/// <summary>
 		/// Strips metadata from a file. Supports images (EXIF/IPTC/XMP), PDFs, OOXML (DOCX/XLSX/PPTX), legacy binary Office (DOC/XLS/PPT and templates), RTF, ODF, EPUB, ORA, SVG, and audio/video. Unrecognised formats returned unchanged with IsPassthrough=true.
 		/// </summary>
@@ -42,9 +62,13 @@ namespace OutSystems.NssFileMetadataStripping {
 		/// <param name="ssStripFileMetadata">The stripped file and audit metadata.</param>
 		public void MssStripFileMetadata(byte[] ssRawFile, bool ssStripBodyAuthors, out RCFileMetadataResultRecord ssStripFileMetadata)
 		{
+			// Best-effort preload of Magick.Native-Q8-x64.dll and its VC++ runtime deps.
+			// No-op on healthy hosts, and no-op on hosts where the preload itself is refused.
+			EnsureMagickNativePreloaded();
+
 			ssStripFileMetadata = DetectCategory(ssRawFile) switch
 			{
-				FileCategory.Image        => StripImageMetadata(ssRawFile),
+				FileCategory.Image        => StripImageMetadataWithFallback(ssRawFile),
 				FileCategory.Svg          => StripSvgMetadata(ssRawFile),
 				FileCategory.Pdf          => StripPdfMetadata(ssRawFile),
 				FileCategory.Rtf          => StripRtfMetadata(ssRawFile),
@@ -125,13 +149,29 @@ namespace OutSystems.NssFileMetadataStripping {
 				return FileCategory.Svg;
 
 			// Images: JPEG, PNG, GIF, TIFF, WebP, TGA, and 100+ more — detected by Magick.NET.
-			try
+			// On hosts where Magick.NET's native library fails to initialise (e.g. OutSystems
+			// Personal Environment sandbox), the CLR raises TypeInitializationException the
+			// first time NativeMagickSettings is touched. Latch the state and fall through to
+			// the pure-managed magic-byte detector so the GDI+ fallback engine can still route
+			// JPEG/PNG/GIF/BMP/TIFF (and recognised-but-unsupported formats) to the image path.
+			if (Volatile.Read(ref _magickBroken) == 0)
 			{
-				var info = new MagickImageInfo(rawFile);
-				if (info.Format != MagickFormat.Unknown)
-					return FileCategory.Image;
+				try
+				{
+					var info = new MagickImageInfo(rawFile);
+					if (info.Format != MagickFormat.Unknown)
+						return FileCategory.Image;
+				}
+				catch (MagickException) { }
+				catch (TypeInitializationException)
+				{
+					Interlocked.Exchange(ref _magickBroken, 1);
+				}
 			}
-			catch (MagickException) { }
+
+			if (Volatile.Read(ref _magickBroken) == 1
+				&& DetectImageFormatByMagicBytes(rawFile) != null)
+				return FileCategory.Image;
 
 			// Audio/video — detected by magic bytes (TagLibSharp handles these formats).
 			// MP3: ID3 header.
@@ -290,6 +330,64 @@ namespace OutSystems.NssFileMetadataStripping {
 			r.ssSTFileMetadataResult.ssRemovedEntryCount = 0;
 			r.ssSTFileMetadataResult.ssIsPassthrough     = true;
 			return r;
+		}
+
+		// ---------------------------------------------------------------------
+		// Native-DLL preload guard
+		//
+		// Some O11 hosts (notably the OutSystems Personal Environment sandbox)
+		// load extension assemblies with a restricted DLL search policy that
+		// does NOT include the module-load directory when resolving dependent
+		// DLLs. That makes Magick.Native-Q8-x64.dll's DllMain abort at import
+		// binding (vcruntime140.dll / msvcp140.dll / vcomp140.dll cannot be
+		// found) and surfaces as HRESULT 0x8007045A (ERROR_DLL_INIT_FAILED)
+		// when Magick.NET first touches NativeMagickSettings.
+		//
+		// Calling LoadLibraryEx with LOAD_WITH_ALTERED_SEARCH_PATH from a
+		// full path makes Windows use the DLL's own directory as the search
+		// root for its dependent DLLs. That resolves the bundled VC++ runtime
+		// DLLs staged alongside Magick.Native-Q8-*.dll in this extension's
+		// bin folder. Once the module is loaded, Magick.NET's later DllImport
+		// for the same base name reuses the existing handle.
+		// ---------------------------------------------------------------------
+
+		private const uint LOAD_WITH_ALTERED_SEARCH_PATH = 0x00000008;
+		private static int _preloadState; // 0 = not attempted, 1 = success, 2 = failed / not applicable
+
+		[DllImport("kernel32", SetLastError = true, CharSet = CharSet.Unicode)]
+		private static extern IntPtr LoadLibraryExW(string lpLibFileName, IntPtr hFile, uint dwFlags);
+
+		[DllImport("kernel32", SetLastError = true, CharSet = CharSet.Unicode)]
+		private static extern bool SetDllDirectoryW(string lpPathName);
+
+		private static void EnsureMagickNativePreloaded()
+		{
+			// Only meaningful on Windows; harmless if the file is not present (state flips to failed).
+			if (Volatile.Read(ref _preloadState) != 0) return;
+
+			try
+			{
+				var asmPath = typeof(CssFileMetadataStripping).Assembly.Location;
+				if (string.IsNullOrEmpty(asmPath)) { Interlocked.Exchange(ref _preloadState, 2); return; }
+				var binDir = Path.GetDirectoryName(asmPath);
+				if (string.IsNullOrEmpty(binDir)) { Interlocked.Exchange(ref _preloadState, 2); return; }
+
+				// Belt: add the bin folder to the process-wide DLL search path.
+				SetDllDirectoryW(binDir);
+
+				// Braces: preload Magick.Native-Q8-x64.dll from an absolute path with
+				// LOAD_WITH_ALTERED_SEARCH_PATH so its own directory is used to resolve
+				// vcruntime140.dll / vcruntime140_1.dll / msvcp140.dll / vcomp140.dll.
+				var dllPath = Path.Combine(binDir, "Magick.Native-Q8-x64.dll");
+				if (!System.IO.File.Exists(dllPath)) { Interlocked.Exchange(ref _preloadState, 2); return; }
+
+				var handle = LoadLibraryExW(dllPath, IntPtr.Zero, LOAD_WITH_ALTERED_SEARCH_PATH);
+				Interlocked.Exchange(ref _preloadState, handle != IntPtr.Zero ? 1 : 2);
+			}
+			catch
+			{
+				Interlocked.Exchange(ref _preloadState, 2);
+			}
 		}
 
 	} // CssFileMetadataStripping

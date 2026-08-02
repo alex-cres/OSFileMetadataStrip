@@ -156,6 +156,9 @@
     <Compile Include="FileMetadataStripping.Images.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="FileMetadataStripping.Images.Gdi.cs">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="FileMetadataStripping.Documents.Pdf.cs">
       <SubType>Code</SubType>
     </Compile>

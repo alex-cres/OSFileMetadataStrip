@@ -11,6 +11,7 @@ Versions correspond to releases published on the [OutSystems Forge](https://www.
 | Version | Date | Notes |
 |---------|------|-------|
 | [Unreleased](./docs/versions/UNRELEASED.md) | — | In-progress changes not yet published to Forge |
+| [v0.1.6](./docs/versions/v0.1.6.md) | 2026-08-03 | **O11 only** — GDI+ fallback engine for locked-down O11 hosts (OutSystems Personal Environment sandbox), native-DLL preload guard, 545-test mirror project. Three-way image strip result contract on O11 GDI hosts. ODC untouched. |
 | [v0.1.5](./docs/versions/v0.1.5.md) | 2026-07-30 | Added: RTF, legacy binary Office (CFBF), Flat ODF, Word 2003 XML, SVG, EPUB, ORA, HEIC→JPEG transcode, DPX/CIN production attrs, extended audio (AIFF/APE/WavPack/MPC), 40+ image formats; OOXML/ODF template + macro-enabled variant coverage; HTML passthrough contract; Documents partial split by pipeline |
 | [v0.1.4](./docs/versions/v0.1.4.md) | 2026-07-25 | Changed: BMP → passthrough; Fix: garbled UTF-8 characters in test files |
 | [v0.1.3](./docs/versions/v0.1.3.md) | 2026-07-24 | Fix: TIFF metadata extraction, test helper bugs (Package flush, minimal AVI), GenerateSamples TIFF sample |
